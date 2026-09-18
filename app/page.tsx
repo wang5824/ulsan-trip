@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   return (
@@ -12,14 +13,27 @@ export default function Home() {
           <p className="mt-4 text-xs leading-5 text-slate-500">10개의 질문 · 로그인 없이 시작해요</p>
         </div>
         <div className="relative overflow-hidden rounded-[2rem] border border-teal-100 bg-cyan-50 p-6 sm:p-8">
-          <div aria-hidden="true" className="relative h-48 overflow-hidden rounded-2xl bg-sky-100 sm:h-64">
-            <div className="absolute right-10 top-8 h-14 w-14 rounded-full bg-amber-200" />
-            <div className="absolute -bottom-20 -left-16 h-48 w-96 -rotate-12 rounded-[50%] bg-teal-700" />
-            <div className="absolute -bottom-24 -right-12 h-56 w-96 rotate-12 rounded-[50%] bg-cyan-500" />
-            <div className="absolute -bottom-32 left-0 h-52 w-[120%] -rotate-6 rounded-[50%] bg-teal-200" />
-            <p className="absolute left-5 top-5 text-xs font-bold tracking-[0.25em] text-teal-900">HELLO, ULSAN</p>
-          </div>
-          <div className="relative -mt-6 ml-4 rounded-2xl border border-white bg-white p-5 shadow-sm sm:ml-10 sm:p-6">
+          <figure className="overflow-hidden rounded-2xl bg-white">
+            <div className="px-5 pt-5">
+              <p className="text-xs font-bold tracking-[0.25em] text-teal-800">HELLO, ULSAN</p>
+              <p className="mt-2 text-lg font-bold text-slate-900">반구대 암각화</p>
+            </div>
+            <Image
+              src="/images/bangudae-petroglyphs.jpg"
+              alt="바위 표면에 동물과 고래 등의 형상이 새겨진 반구대 암각화"
+              width={7898}
+              height={4004}
+              sizes="(max-width: 639px) calc(100vw - 88px), (max-width: 1023px) calc(100vw - 128px), 440px"
+              preload
+              className="my-4 h-auto w-full"
+            />
+            <figcaption className="px-5 pb-5 text-[11px] leading-5 text-slate-500">
+              사진: <a href="https://commons.wikimedia.org/wiki/File:Bangudae3.jpg" className="underline underline-offset-2">울산암각화박물관 / Wikimedia Commons</a>
+              {" · "}<a href="https://creativecommons.org/licenses/by-sa/3.0/" className="underline underline-offset-2">CC BY-SA 3.0</a>
+              {" · 크기 조정"}
+            </figcaption>
+          </figure>
+          <div className="relative mt-4 ml-4 rounded-2xl border border-white bg-white p-5 shadow-sm sm:ml-10 sm:p-6">
             <p className="text-xs font-semibold tracking-widest text-teal-700">YOUR TRAVEL MOOD</p>
             <p className="mt-3 text-xl font-bold text-slate-900">오늘은 어떤 여행이 좋을까요?</p>
             <div className="mt-5 flex flex-wrap gap-2">

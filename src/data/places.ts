@@ -1,10 +1,6 @@
 import type { Place } from "../types/travel";
 
-/**
- * 개발 및 추천 로직 테스트 전용 mock 데이터입니다. 실제 서비스 데이터가 아닙니다.
- * 모든 장소명과 주소는 가상이며, 좌표는 울산 일대의 예시 위치일 뿐입니다.
- * 점수, 체류 시간, 관광두레 소속 여부도 테스트용 설정으로 실제 사실을 뜻하지 않습니다.
- */
+
 export const places: Place[] = [
   {
     id: "daewangam-park",
