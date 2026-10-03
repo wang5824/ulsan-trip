@@ -7,6 +7,7 @@ import Link from "next/link";
 import KakaoMap from "@/src/components/KakaoMap";
 import CourseTimeline from "@/src/components/result/CourseTimeline";
 import { createTravelCopy } from "@/src/lib/travel-copy";
+import { createSchedule, formatScheduleTime } from "@/src/lib/recommendation";
 const companionLabels = { solo: "혼자", couple: "연인과", friends: "친구와", family: "가족과" };
 const transportLabels = { car: "자가용", "public-transit": "대중교통", walking: "도보" };
 const interestLabels = { nature: "자연", sea: "바다", culture: "문화", experience: "체험", food: "음식", photo: "사진" };
@@ -19,15 +20,8 @@ export default function RecommendationResult() {
     if (!trip) router.replace("/survey");
   }, [trip, router]);
 
-  // 같은 배열을 유지해 불필요한 지도 재생성을 방지합니다.
-  const stops = useMemo(() => {
-    if (!trip) return [];
-    const attractions = trip.recommendations.filter(({ place }) => place.type === "attraction");
-    const restaurants = trip.recommendations.filter(({ place }) => place.type === "restaurant");
-    const cafes = trip.recommendations.filter(({ place }) => place.type === "cafe");
-    // 관광 → 식사 → 관광 → 휴식 → 나머지 관광 순서이며 이동 경로 최적화는 아닙니다.
-    return [...attractions.slice(0, 1), ...restaurants, ...attractions.slice(1, 2), ...cafes, ...attractions.slice(2)];
-  }, [trip]);
+  const stops = useMemo(() => trip?.recommendations ?? [], [trip]);
+  const schedule = useMemo(() => trip ? createSchedule(trip.profile, stops) : [], [trip, stops]);
   const mapPlaces = useMemo(() => stops.map(({ place }) => place), [stops]);
 
   if (!trip) {
@@ -36,6 +30,8 @@ export default function RecommendationResult() {
   const { profile } = trip;
   const travelCopy = createTravelCopy(profile, mapPlaces);
   const totalStayMinutes = stops.reduce((sum, { place }) => sum + place.recommendedDuration, 0);
+
+  const totalTravelMinutes = schedule.reduce((sum, stop) => sum + stop.travelMinutes, 0);
 
   return (
     <main className="flex-1 bg-[#f8faf8] px-5 py-10 text-slate-900 sm:px-8 sm:py-14">
@@ -48,7 +44,7 @@ export default function RecommendationResult() {
             <p className="mt-3 text-base leading-8 text-slate-600 sm:text-lg">{travelCopy.introduction}</p>
           </div>
           <p className="mt-6 rounded-2xl border border-amber-200/70 bg-amber-50/70 px-4 py-3 text-xs leading-6 text-amber-900">
-            설문 답변을 바탕으로 개발용 가상 장소(mock)를 추천합니다. 장소 정보와 관광두레 소속 여부는 실제 정보가 아닙니다.
+            음식점과 카페는 관광 일정 근처에서 추천하며, 가까운 후보가 없으면 생략합니다. 이동시간은 좌표 거리와 이동수단별 가정으로 추정하며 실시간 교통·배차·영업시간은 반영하지 않습니다. 출발지→첫 장소와 마지막 장소→귀가 이동은 제외합니다.
           </p>
         </header>
 
@@ -73,10 +69,11 @@ export default function RecommendationResult() {
           <section aria-labelledby="timeline-heading" className="min-w-0">
             <h2 id="timeline-heading" className="text-xl font-bold">추천 일정</h2>
             <p className="mb-6 mt-3 text-sm leading-7 text-slate-500">
-              {stops.length}곳 · 예상 체류 총 {totalStayMinutes}분 (이동 시간 제외)<br />
-              방문 순서 예시이며, 실제 이동 시간과 영업시간은 반영하지 않았어요.
+              {stops.length}곳 · 체류 {totalStayMinutes}분 + 이동 약 {totalTravelMinutes}분 = 총 약 {totalStayMinutes + totalTravelMinutes}분<br />
+              {schedule.length > 0 ? `예상 종료 ${formatScheduleTime(schedule[schedule.length - 1].departureMinutes)} · 선택한 종료시간 안에 맞춘 일정입니다.` : "선택한 시간 안에 체류 가능한 관광지가 없습니다. 여행 시간을 늘려보세요."}
+              <br />{profile.transport === "car" ? "자가용: 직선거리 × 1.35, 시속 30km, 구간별 주차 여유 8분." : profile.transport === "public-transit" ? "대중교통: 직선거리 × 1.5, 시속 20km, 구간별 접근·대기·환승 여유 20분. 600m 이하는 도보로 추정합니다." : "도보: 직선거리 × 1.2, 시속 4km."} 이동시간은 5분 단위로 올림합니다.
             </p>
-            <CourseTimeline stops={stops} />
+            <CourseTimeline stops={schedule} />
           </section>
 
           <aside aria-labelledby="map-heading" className="min-w-0 rounded-3xl border border-teal-900/5 bg-white p-5 shadow-sm sm:p-6 lg:sticky lg:top-8">

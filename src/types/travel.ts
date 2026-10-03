@@ -62,3 +62,9 @@ export interface UserProfile {
   startTime: TimeOfDay;
   endTime: TimeOfDay;
 }
+
+export interface PlaceCatalog {
+  attractions: readonly (Place & { type: "attraction" })[];
+  restaurants: readonly (Place & { type: "restaurant" })[];
+  cafes: readonly (Place & { type: "cafe" })[];
+}

@@ -1,36 +1,199 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 울산, 나의 여행
 
-## Getting Started
+동행인과 여행 취향에 관한 10개의 설문을 바탕으로 울산 관광지와 주변 음식점·카페를 추천하는 웹 서비스입니다. 추천 결과에서 여행 스타일, 장소별 추천 이유, 방문 순서와 지도를 확인할 수 있습니다.
 
-First, run the development server:
+현재 저장소의 정적 장소 데이터와 규칙 기반 점수 계산으로 동작합니다. 별도의 데이터베이스 서버나 생성형 AI API는 사용하지 않습니다.
+
+## 주요 기능과 화면 흐름
+
+| 경로 | 화면 | 주요 기능 |
+| --- | --- | --- |
+| `/` | 서비스 소개 | 서비스 안내와 여행 설문 시작 |
+| `/survey` | 여행 성향 설문 | 질문별 응답, 이전·다음 이동, 입력 검증 |
+| `/result` | 추천 결과 | 여행 스타일 요약, 추천 이유, 방문 일정, 카카오 지도 |
+
+설문에서는 동행인, 이동수단, 활동량, 휴식 빈도, 자연·음식·문화·체험 관심도, 음식 선호, 여행 시작·종료 시간을 입력합니다. 관심도 4점 이상인 항목을 관심사로 반영하며, 종료 시간은 같은 날의 시작 시간보다 늦어야 합니다.
+
+설문과 추천 결과는 `TravelProvider`의 메모리 상태로 공유합니다. 로그인이나 별도 저장 기능은 없으며, 새로고침하면 초기화됩니다. 결과 없이 `/result`에 접근하면 설문 화면으로 이동합니다.
+
+## 사용 기술
+
+| 항목 | 구성 |
+| --- | --- |
+| 웹 프레임워크 | Next.js 16.3.5, App Router |
+| 화면 구성 | React 19.2.8, TypeScript 5 |
+| 스타일 | Tailwind CSS 4 |
+| 지도 | 카카오맵 JavaScript SDK |
+| 코드 검사 | ESLint 9, TypeScript |
+| 추천 테스트 | Node.js 내장 테스트 러너 |
+
+## 개발 환경 실행
+
+Node.js 20.9.0 이상과 npm이 필요합니다.
+
+### 1. 의존성 설치
+
+프로젝트 루트에서 실행합니다.
+
+```bash
+npm ci
+```
+
+### 2. 지도 환경 변수 설정
+
+프로젝트 루트의 `.env.local`에 카카오맵 JavaScript 앱 키를 설정합니다.
+
+```dotenv
+NEXT_PUBLIC_KAKAO_MAP_KEY=발급받은_카카오_JavaScript_앱_키
+```
+
+이 변수는 브라우저에서 지도 SDK를 불러올 때 사용합니다. 지도 키가 없거나 SDK 로딩에 실패해도 설문과 추천 일정은 사용할 수 있으며, 지도 영역에 오류 안내와 재시도 버튼이 표시됩니다. 환경 변수를 변경한 뒤에는 개발 서버를 다시 시작합니다. `.env.local`은 Git 추적 대상에서 제외되어 있습니다.
+
+### 3. 개발 서버 시작
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 `http://localhost:3000`에 접속합니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. 배포용 빌드와 실행
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm run start
+```
 
-## Learn More
+지도 키는 빌드 전에 설정합니다. 현재 레이아웃은 `next/font/google`로 Geist 글꼴을 사용하므로 빌드 환경에서 글꼴 다운로드에 필요한 네트워크 접근이 필요할 수 있습니다.
 
-To learn more about Next.js, take a look at the following resources:
+## 장소 데이터
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+관광지·음식점·카페를 각각 독립된 TypeScript 파일에서 관리합니다. `src/data/places.ts`는 세 목록을 `placeCatalog`로 연결하는 진입점입니다.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| 구분 | 파일 | 등록 수 | 등록 장소 |
+| --- | --- | --- | --- |
+| 관광지 | [attractions.ts](src/data/attractions.ts) | 7개 | 대왕암공원, 태화강 국가정원, 간절곶, 장생포 고래문화마을, 외고산 옹기마을, 울산대공원, 반구대 암각화 |
+| 음식점 | [restaurants.ts](src/data/restaurants.ts) | 3개 | 함양집 본점, 언양기와집불고기, 미진돌곱창 |
+| 카페 | [cafes.ts](src/data/cafes.ts) | 1개 | 농도 |
 
-## Deploy on Vercel
+장소에는 고유 ID, 이름, 유형, 카테고리, 주소, 위도·경도, 설명, 활동량, 동행 유형별 적합도, 휴식 적합도, 실내 여부, 권장 체류 시간, 관광두레 여부를 저장합니다. 점수 항목은 1~5점이며 체류 시간은 분 단위입니다. 상세 타입은 [travel.ts](src/types/travel.ts)에 정의되어 있습니다.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+장소를 추가할 때는 해당 유형의 파일에 등록하고, 전체 목록에서 중복되지 않는 ID와 올바른 좌표를 지정합니다. 현재 모든 장소의 `isTourismDure`는 `false`입니다.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 추천 알고리즘
+
+추천 로직은 [recommendation.ts](src/lib/recommendation.ts)에 구현되어 있습니다.
+
+### 1. 여행 성향 점수 계산
+
+| 평가 항목 | 최대 점수 | 반영 기준 |
+| --- | --- | --- |
+| 관심사 | 35점 | 장소 카테고리와 관심사 일치 여부. 음식점은 음식 선호도 함께 반영 |
+| 동행인 | 25점 | 가족·연인·친구 적합도. 혼자 여행은 중립값 적용 |
+| 활동량 | 20점 | 선호 활동량과 장소 활동량의 차이 |
+| 휴식 | 20점 | 사용자의 휴식 필요도와 장소의 휴식 적합도 |
+| 관광두레 | 추가 8점 | 데이터의 `isTourismDure`가 `true`인 경우 |
+
+기본 점수는 최대 100점이며 관광두레 가점은 별도입니다. 음식 선호는 점수에 반영하는 요소이며 특정 음식점을 반드시 제외하는 필터는 아닙니다. 지원되는 관심사가 없으면 관심사 점수에 중립값을 적용합니다.
+
+### 2. 관광지 선정과 방문 순서 구성
+
+1. 성향 점수가 높은 관광지를 최대 3개 선정합니다. 여행 시간이 6시간 이상이면 최대 4개를 선정합니다.
+2. 가장 높은 점수의 관광지부터 시작하여, 남은 관광지 중 직선 거리가 가까운 곳을 차례로 연결합니다.
+3. 음식점을 최대 1개 추가하고, 휴식 빈도가 4점 이상이면 카페를 최대 1개 추가합니다. 현재 설문의 휴식 응답은 1·3·5점이므로 ‘자주’를 선택하면 카페 추천 대상이 됩니다.
+
+최종 결과는 점수순이 아닌 방문 순서로 반환하며, 일정과 지도에서 동일한 순서를 사용합니다.
+
+### 3. 음식점·카페의 이동 거리 제한
+
+음식점이나 카페만을 위해 멀리 이동하지 않도록, 선정된 관광지 중 한 곳과의 거리 및 일정에 추가되는 우회 거리를 모두 제한합니다.
+
+| 이동수단 | 관광지와의 최대 거리 | 방문 1개 추가 시 우회 거리 상한 |
+| --- | --- | --- |
+| 자가용 | 3km | 4km |
+| 대중교통 | 1km | 1.5km |
+| 도보 | 600m | 800m |
+
+현재 설문은 자가용과 대중교통을 제공합니다. 도보 기준은 타입과 추천 로직에 구현되어 있습니다.
+
+첫 관광지 방문 이후의 각 위치를 후보로 비교합니다. 두 장소 사이에 넣는 경우 `이전 장소 → 후보 → 다음 장소`의 거리에서 기존 `이전 장소 → 다음 장소` 거리를 뺀 값을 우회 거리로 계산합니다. 일정 마지막에 넣는 경우에는 마지막 장소에서 후보까지의 편도 거리를 사용합니다.
+
+거리 제한을 통과한 후보는 아래 기준으로 비교합니다.
+
+```text
+선정 점수 = 성향 점수 − 20 × (추가 우회 거리 / 이동수단별 우회 거리 상한)
+```
+
+음식점을 먼저 삽입한 뒤 변경된 일정에 카페를 삽입합니다. 후보 선정에 사용하는 거리 감점은 원래 성향 점수와 항목별 설명을 변경하지 않습니다. 가까운 후보가 없으면 해당 유형을 생략하며, 관광지가 없으면 음식점·카페만으로 일정을 만들지 않습니다.
+
+점수 가중치는 `RECOMMENDATION_WEIGHTS`, 관광지 개수와 카페 추천 조건은 `RECOMMENDATION_RULES`, 거리 제한은 `FOOD_DISTANCE_LIMITS`에서 확인할 수 있습니다.
+
+## 현재 구현 범위와 제한
+
+- 거리는 위도·경도 기반 직선 거리입니다. 실제 도로, 대중교통 노선, 교통 상황은 반영하지 않습니다.
+- 관광지는 성향 점수로 먼저 선정합니다. 관광지 사이의 장거리 이동 자체를 제한하거나 전체 최단 경로를 보장하지는 않습니다.
+- 여행 시작·종료 시간은 관광지 개수 결정에 사용합니다. 체류·이동 시간을 합산하여 입력 시간 안에 들어오는지 검증하지 않으며, 식사 시간대와 영업시간도 반영하지 않습니다.
+- 음식점·카페 후보가 적어 일부 일정에서는 식사나 카페가 생략될 수 있습니다. 현재 등록된 카페도 관광지와의 거리 제한으로 제외될 수 있습니다.
+- 음식 선호에는 양식·채식이 있지만 현재 등록 음식점의 카테고리는 모두 한식입니다. 음식 선호만으로 식단 조건을 보장하지 않습니다.
+- 장소 정보와 평가 점수를 실시간으로 검증하거나 갱신하는 기능은 없습니다.
+
+## 프로젝트 구조
+
+```text
+app/
+  page.tsx                         # 서비스 소개
+  survey/page.tsx                  # 설문 페이지
+  result/page.tsx                  # 결과 페이지
+  layout.tsx                       # 공통 레이아웃과 상태 공급자
+  globals.css                      # 공통 스타일
+src/
+  components/
+    TravelProvider.tsx             # 설문·추천 결과 상태 관리
+    KakaoMap.tsx                   # 지도와 방문 순서 표시
+    survey/SurveyForm.tsx          # 단계별 설문
+    result/                        # 결과 화면, 일정, 장소 카드
+  data/
+    attractions.ts                 # 관광지 데이터
+    restaurants.ts                 # 음식점 데이터
+    cafes.ts                       # 카페 데이터
+    places.ts                      # 유형별 데이터 연결
+    survey.ts                      # 설문 질문과 선택지
+  lib/
+    recommendation.ts              # 점수 계산과 거리 기반 추천
+    recommendation.test.ts         # 추천 회귀 테스트
+    survey.ts                      # 응답 검증과 프로필 변환
+    travel-copy.ts                 # 여행 스타일 소개 문구
+    kakao-sdk.ts                   # 카카오 지도 SDK 로딩
+  types/
+    travel.ts                      # 장소·여행 프로필 타입
+    kakao.ts                       # 지도 SDK 타입
+scripts/
+  test-recommendation.mjs           # 테스트 컴파일·실행
+public/images/
+  bangudae-petroglyphs.jpg          # 소개 화면 사진
+  ATTRIBUTION.md                   # 사진 출처와 이용 조건
+```
+
+## 검증 명령
+
+```bash
+# 추천 알고리즘 회귀 테스트
+npm run test:recommendation
+
+# 코드 스타일 및 정적 검사
+npm run lint
+
+# 타입 검사
+npx tsc --noEmit
+
+# 배포용 빌드 확인
+npm run build
+```
+
+추천 테스트는 성향 점수, 중복 ID 처리, 빈 데이터와 잘못된 시간, 유형별 데이터 보존, 이동수단별 거리 제한, 우회 상한, 방문 순서, 잘못된 음식점 좌표 등을 확인합니다. 임시 디렉터리에 TypeScript를 컴파일한 뒤 Node.js 내장 테스트 러너로 실행하고 정리합니다.
+
+Next.js 관련 코드를 수정할 때는 [AGENTS.md](AGENTS.md)의 지침에 따라 설치된 버전의 `node_modules/next/dist/docs/` 문서를 먼저 확인합니다.
+
+## 이미지 출처
+
+소개 화면의 반구대 암각화 사진은 울산암각화박물관의 사진이며 Wikimedia Commons를 통해 제공됩니다. 사진의 라이선스는 CC BY-SA 3.0입니다. 원본 출처와 상세 이용 조건은 [이미지 출처 문서](public/images/ATTRIBUTION.md)를 참고하세요.

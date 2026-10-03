@@ -1,4 +1,4 @@
-import type { Interest, Place, PlaceCategory, Score, UserProfile } from "../types/travel";
+import type { Interest, Place, PlaceCatalog, PlaceCategory, Score, Transport, UserProfile } from "../types/travel";
 
 /** 기본 점수는 최대 100점, 관광두레는 별도 가점입니다. */
 export const RECOMMENDATION_WEIGHTS = {
@@ -120,29 +120,122 @@ function minutes(time: UserProfile["startTime"]): number {
   return hours * 60 + mins;
 }
 
-/**
- * 카테고리별 상위 후보를 선택하고 전체 점수순으로 반환합니다. 방문 순서가 아닙니다.
- * 시간은 3/4개 선택의 기준일 뿐 체류·이동 시간, 영업시간, 교통 경로는 검증하지 않습니다.
- * 후보가 부족하면 있는 만큼만 반환하며 다른 카테고리로 채우지 않습니다.
- */
-export function recommendPlacesWithBreakdown(profile: UserProfile, places: readonly Place[]): ScoredPlace[] {
-  const duration = minutes(profile.endTime) - minutes(profile.startTime);
-  if (!Number.isFinite(duration) || duration <= 0) return [];
-  const limits = {
-    attraction: duration >= RECOMMENDATION_RULES.extendedTripMinutes
-      ? RECOMMENDATION_RULES.extendedAttractionCount : RECOMMENDATION_RULES.attractionCount,
-    restaurant: RECOMMENDATION_RULES.restaurantCount,
-    cafe: profile.restFrequency >= RECOMMENDATION_RULES.cafeRestThreshold ? RECOMMENDATION_RULES.cafeCount : 0,
-  };
-  const counts = { attraction: 0, restaurant: 0, cafe: 0 };
-  return rankPlaces(profile, places).filter(({ place }) => {
-    if (counts[place.type] >= limits[place.type]) return false;
-    counts[place.type] += 1;
-    return true;
+/** 좌표 기준 직선 거리(km). 실제 도로 거리나 이동 시간이 아닙니다. */
+export function distanceKm(a: Place, b: Place): number {
+  const coords = [a.latitude, a.longitude, b.latitude, b.longitude];
+  if (!coords.every(Number.isFinite) || Math.abs(a.latitude) > 90 || Math.abs(b.latitude) > 90
+    || Math.abs(a.longitude) > 180 || Math.abs(b.longitude) > 180) return Infinity;
+  const rad = Math.PI / 180;
+  const h = Math.sin((b.latitude - a.latitude) * rad / 2) ** 2
+    + Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad)
+    * Math.sin((b.longitude - a.longitude) * rad / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, h))));
+}
+
+/** 경로 API가 없는 상태의 계획용 가정입니다. 실제 교통 통계가 아닙니다. */
+export const TRAVEL_ASSUMPTIONS = {
+  car: { distanceFactor: 1.35, speedKmh: 30, overheadMinutes: 8 },
+  "public-transit": { distanceFactor: 1.5, speedKmh: 20, overheadMinutes: 20 },
+  walking: { distanceFactor: 1.2, speedKmh: 4, overheadMinutes: 0 },
+} as const;
+
+/** 자가용은 주차 여유, 대중교통은 접근·대기·환승 여유를 포함합니다. */
+export function estimateTravelMinutes(a: Place, b: Place, transport: Transport): number {
+  const distance = distanceKm(a, b);
+  if (!Number.isFinite(distance)) return Infinity;
+  if (distance === 0) return 0;
+  // 가까운 대중교통 구간은 도보 이동으로 계획합니다.
+  const assumptions = TRAVEL_ASSUMPTIONS[transport === "public-transit" && distance <= 0.6 ? "walking" : transport];
+  return Math.ceil((distance * assumptions.distanceFactor / assumptions.speedKmh * 60 + assumptions.overheadMinutes) / 5) * 5;
+}
+
+export interface ScheduledStop {
+  recommendation: ScoredPlace;
+  travelMinutes: number;
+  arrivalMinutes: number;
+  departureMinutes: number;
+}
+
+export function createSchedule(profile: UserProfile, stops: readonly ScoredPlace[]): ScheduledStop[] {
+  let cursor = minutes(profile.startTime);
+  return stops.map((recommendation, index) => {
+    const travelMinutes = index === 0 ? 0 : estimateTravelMinutes(stops[index - 1].place, recommendation.place, profile.transport);
+    const arrivalMinutes = cursor + travelMinutes;
+    cursor = arrivalMinutes + recommendation.place.recommendedDuration;
+    return { recommendation, travelMinutes, arrivalMinutes, departureMinutes: cursor };
   });
 }
 
-/** 장소 배열만 필요한 호출부를 위한 간단한 API입니다. */
-export function recommendPlaces(profile: UserProfile, places: readonly Place[]): Place[] {
-  return recommendPlacesWithBreakdown(profile, places).map(({ place }) => place);
+export function formatScheduleTime(value: number): string {
+  return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+}
+
+function fitsSchedule(profile: UserProfile, route: readonly ScoredPlace[]): boolean {
+  const schedule = createSchedule(profile, route);
+  return schedule.length === 0 || schedule[schedule.length - 1].departureMinutes <= minutes(profile.endTime);
+}
+
+/** 각 추가 방문의 관광지 반경 및 전체 일정에 더해지는 우회 거리 상한(km). */
+export const FOOD_DISTANCE_LIMITS = {
+  car: { radius: 3, detour: 4 },
+  "public-transit": { radius: 1, detour: 1.5 },
+  walking: { radius: 0.6, detour: 0.8 },
+} as const;
+
+/**
+ * 관광지를 먼저 선정하고 가까운 순서로 연결한 뒤 식사·휴식을 삽입합니다.
+ * 반환 순서는 화면과 지도에 사용할 방문 순서입니다. 후보가 없으면 생략합니다.
+ * 체류·예상 이동시간을 여행 시간 안에 배정합니다. 실제 경로와 영업시간은 검증하지 않습니다.
+ */
+export function recommendPlacesWithBreakdown(profile: UserProfile, catalog: PlaceCatalog): ScoredPlace[] {
+  const duration = minutes(profile.endTime) - minutes(profile.startTime);
+  if (!Number.isFinite(duration) || duration <= 0) return [];
+  const count = duration >= RECOMMENDATION_RULES.extendedTripMinutes
+    ? RECOMMENDATION_RULES.extendedAttractionCount : RECOMMENDATION_RULES.attractionCount;
+  const remaining = rankPlaces(profile, catalog.attractions);
+  const route: ScoredPlace[] = [];
+  while (remaining.length && route.length < count) {
+    const previous = route[route.length - 1];
+    if (previous) remaining.sort((a, b) => distanceKm(previous.place, a.place) - distanceKm(previous.place, b.place) || compareScores(a, b));
+    const candidate = remaining.shift()!;
+    if (Number.isFinite(distanceKm(candidate.place, candidate.place))
+      && Number.isFinite(candidate.place.recommendedDuration) && candidate.place.recommendedDuration > 0
+      && fitsSchedule(profile, [...route, candidate])) route.push(candidate);
+  }
+  const attractions = [...route];
+  if (!attractions.length) return [];
+  const limits = FOOD_DISTANCE_LIMITS[profile.transport];
+  const used = new Set(route.map(({ place }) => place.id));
+  const insertNearby = (candidates: readonly Place[]) => {
+    const options = rankPlaces(profile, candidates).flatMap((candidate) => {
+      if (used.has(candidate.place.id)) return [];
+      const nearest = Math.min(...attractions.map(({ place }) => distanceKm(place, candidate.place)));
+      if (nearest > limits.radius) return [];
+      // 첫 관광지 방문 후부터 삽입합니다. 마지막 위치는 편도 이동으로 계산합니다.
+      return route.flatMap((stop, index) => {
+        const next = route[index + 1];
+        const detour = next
+          ? Math.max(0, distanceKm(stop.place, candidate.place) + distanceKm(candidate.place, next.place) - distanceKm(stop.place, next.place))
+          : distanceKm(stop.place, candidate.place);
+        if (!Number.isFinite(detour) || detour > limits.detour) return [];
+        const proposed = [...route];
+        proposed.splice(index + 1, 0, candidate);
+        if (!fitsSchedule(profile, proposed)) return [];
+        return [{ candidate, index, detour, priority: candidate.totalScore - 20 * detour / limits.detour }];
+      });
+    });
+    options.sort((a, b) => b.priority - a.priority || a.detour - b.detour || compareScores(a.candidate, b.candidate) || a.index - b.index);
+    const best = options[0];
+    if (best) {
+      route.splice(best.index + 1, 0, best.candidate);
+      used.add(best.candidate.place.id);
+    }
+  };
+  insertNearby(catalog.restaurants);
+  if (profile.restFrequency >= RECOMMENDATION_RULES.cafeRestThreshold) insertNearby(catalog.cafes);
+  return route;
+}
+
+export function recommendPlaces(profile: UserProfile, catalog: PlaceCatalog): Place[] {
+  return recommendPlacesWithBreakdown(profile, catalog).map(({ place }) => place);
 }

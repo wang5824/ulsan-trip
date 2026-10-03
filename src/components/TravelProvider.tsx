@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { places } from "../data/places";
+import { placeCatalog } from "../data/places";
 import { recommendPlacesWithBreakdown, type ScoredPlace } from "../lib/recommendation";
 import type { UserProfile } from "../types/travel";
 
@@ -23,7 +23,7 @@ export default function TravelProvider({ children }: { children: ReactNode }) {
 
   function completeSurvey(profile: UserProfile) {
     // 프로필과 계산 결과를 함께 갱신해 이전 추천 결과와 섞이지 않도록 합니다.
-    const recommendations = recommendPlacesWithBreakdown(profile, places);
+    const recommendations = recommendPlacesWithBreakdown(profile, placeCatalog);
     setTrip({ profile, recommendations });
   }
 

@@ -68,7 +68,6 @@ export default function Home() {
             </div>
             <Link href="/survey" className="inline-flex min-h-12 shrink-0 items-center justify-center gap-4 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700">나만의 여행 찾기 <span aria-hidden="true">→</span></Link>
           </div>
-          <p className="mt-8 text-xs leading-6 text-slate-500">현재는 개발용 가상 장소로 추천을 체험할 수 있습니다. 실제 방문 정보는 제공하지 않습니다.</p>
         </div>
       </section>
     </main>

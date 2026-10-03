@@ -24,7 +24,7 @@ export default function PlaceCard({ recommendation }: { recommendation: ScoredPl
           {typeLabels[place.type]} · {categoryLabels[place.category]}
         </span>
         <span className={`rounded-full px-3 py-1.5 ${place.isTourismDure ? "bg-amber-50 text-amber-900" : "bg-slate-50 text-slate-500"}`}>
-          {place.isTourismDure ? "관광두레 · mock 설정" : "관광두레 비소속 · mock 설정"}
+          {place.isTourismDure ? "관광두레" : "관광두레 비소속"}
         </span>
       </div>
       <h3 className="mt-4 text-lg font-bold leading-snug tracking-tight sm:text-xl">{place.name}</h3>
