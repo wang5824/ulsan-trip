@@ -6,7 +6,8 @@ const interestPhrases: Record<Interest, string> = {
 };
 const themes: Record<PlaceCategory, string> = {
   nature: "자연", sea: "바다", culture: "문화", experience: "체험",
-  korean: "한식", seafood: "해산물", cafe: "쉼",
+  korean: "한식", seafood: "해산물", western: "양식", chinese: "중식", japanese: "일식",
+  "fast-food": "음식", "other-food": "음식", cafe: "쉼",
 };
 const companions: Record<UserProfile["companion"], string> = {
   solo: "혼자만의 시간을 즐기는 당신", couple: "두 사람", friends: "함께 떠나는 친구들", family: "함께하는 가족",

@@ -1,10 +1,6 @@
 import type { ScoredPlace } from "../../lib/recommendation";
-import type { PlaceCategory, PlaceType } from "../../types/travel";
-
-const categoryLabels: Record<PlaceCategory, string> = {
-  nature: "자연", sea: "바다", culture: "문화", experience: "체험",
-  korean: "한식", seafood: "해산물", cafe: "카페",
-};
+import type { PlaceType } from "../../types/travel";
+import { PLACE_CATEGORY_LABELS as categoryLabels } from "../../lib/place-categories";
 const typeLabels: Record<PlaceType, string> = {
   attraction: "관광지", restaurant: "음식점", cafe: "카페",
 };
@@ -24,11 +20,12 @@ export default function PlaceCard({ recommendation }: { recommendation: ScoredPl
           {typeLabels[place.type]} · {categoryLabels[place.category]}
         </span>
         <span className={`rounded-full px-3 py-1.5 ${place.isTourismDure ? "bg-amber-50 text-amber-900" : "bg-slate-50 text-slate-500"}`}>
-          {place.isTourismDure ? "관광두레" : "관광두레 비소속"}
+          {place.isTourismDure === null ? "관광두레 여부 미확인" : place.isTourismDure ? "관광두레" : "관광두레 비소속"}
         </span>
       </div>
       <h3 className="mt-4 text-lg font-bold leading-snug tracking-tight sm:text-xl">{place.name}</h3>
-      <p className="mt-3 text-xs font-semibold text-teal-800 sm:text-sm">예상 체류 약 {place.recommendedDuration}분 · {place.indoor ? "실내" : "야외"}</p>
+      <p className="mt-3 text-xs font-semibold text-teal-800 sm:text-sm">예상 체류 약 {place.recommendedDuration}분 · {place.indoor === null ? "실내외 혼합 또는 미확인" : place.indoor ? "실내" : "야외"}</p>
+      <p className="mt-2 text-xs leading-5 text-slate-500">{place.address ?? "주소 미확인"}</p>
       <p className="mt-4 text-sm leading-7 text-slate-600">{place.description}</p>
       <div className="mt-5 rounded-2xl border border-teal-100/60 bg-teal-50/50 p-4">
         <p className="text-xs font-bold text-teal-900">이런 점이 잘 맞아요</p>

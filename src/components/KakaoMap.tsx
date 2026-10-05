@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { loadKakaoMaps } from "../lib/kakao-sdk";
-import type { Place, PlaceCategory } from "../types/travel";
-
-const categoryLabels: Record<PlaceCategory, string> = {
-  nature: "자연", sea: "바다", culture: "문화", experience: "체험",
-  korean: "한식", seafood: "해산물", cafe: "카페",
-};
+import type { Place } from "../types/travel";
+import { PLACE_CATEGORY_LABELS as categoryLabels } from "../lib/place-categories";
+import { createMapEntries } from "../lib/place-coordinates";
 
 /** 전달된 배열 순서를 그대로 지도 번호로 사용합니다. 경로 계산은 하지 않습니다. */
 export default function KakaoMap({ places }: { places: readonly Place[] }) {
@@ -15,10 +12,11 @@ export default function KakaoMap({ places }: { places: readonly Place[] }) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
   const [selected, setSelected] = useState<Place | null>(null);
+  const entries = useMemo(() => createMapEntries(places), [places]);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || places.length === 0) return;
+    if (!container || entries.length === 0) return;
     let cancelled = false;
     const cleanups: (() => void)[] = [];
 
@@ -34,16 +32,12 @@ export default function KakaoMap({ places }: { places: readonly Place[] }) {
       setStatus("loading");
       setSelected(null);
       try {
-        if (places.some((place) => !Number.isFinite(place.latitude) || !Number.isFinite(place.longitude)
-          || Math.abs(place.latitude) > 90 || Math.abs(place.longitude) > 180)) {
-          throw new Error("Invalid coordinates");
-        }
         const maps = await loadKakaoMaps();
         if (cancelled) return;
-        const first = places[0];
+        const first = entries[0].place;
         const map = new maps.Map(container, { center: new maps.LatLng(first.latitude, first.longitude), level: 5 });
         const bounds = new maps.LatLngBounds();
-        const positions = places.map((place) => new maps.LatLng(place.latitude, place.longitude));
+        const positions = entries.map(({ place }) => new maps.LatLng(place.latitude, place.longitude));
         const info = new maps.InfoWindow({ removable: true });
         cleanups.push(() => info.close());
 
@@ -60,20 +54,20 @@ export default function KakaoMap({ places }: { places: readonly Place[] }) {
           cleanups.push(() => line.setMap(null));
         }
 
-        places.forEach((place, index) => {
+        entries.forEach(({ place, visitNumber }, index) => {
           const position = positions[index];
           bounds.extend(position);
           // SVG에는 배열 번호만 삽입하며 장소명 등 외부 문자열은 삽입하지 않습니다.
-          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="46" viewBox="0 0 40 46"><path d="M20 45 12 34a18 18 0 1 1 16 0Z" fill="#0f766e" stroke="white" stroke-width="2"/><text x="20" y="25" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="17" font-weight="bold">${index + 1}</text></svg>`;
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="46" viewBox="0 0 40 46"><path d="M20 45 12 34a18 18 0 1 1 16 0Z" fill="#0f766e" stroke="white" stroke-width="2"/><text x="20" y="25" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="17" font-weight="bold">${visitNumber}</text></svg>`;
           const image = new maps.MarkerImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, new maps.Size(40, 46), { offset: new maps.Point(20, 46) });
-          const marker = new maps.Marker({ map, position, image, title: `${index + 1}. ${place.name}` });
+          const marker = new maps.Marker({ map, position, image, title: `${visitNumber}. ${place.name}` });
           cleanups.push(() => marker.setMap(null));
           const onClick = () => {
             if (cancelled) return;
             const content = document.createElement("div");
             content.style.cssText = "padding:12px 28px 12px 12px;max-width:240px;color:#0f172a;font-size:14px;white-space:normal;";
             const title = document.createElement("strong");
-            title.textContent = `${index + 1}. ${place.name}`;
+            title.textContent = `${visitNumber}. ${place.name}`;
             const category = document.createElement("p");
             category.style.marginTop = "4px";
             category.textContent = categoryLabels[place.category];
@@ -110,14 +104,14 @@ export default function KakaoMap({ places }: { places: readonly Place[] }) {
       clearMap();
       // 공유 SDK는 다른 지도와 다음 마운트를 위해 유지합니다.
     };
-  }, [places, attempt]);
+  }, [entries, attempt]);
 
   return (
     <div>
       <div className="relative isolate overflow-hidden rounded-2xl border border-teal-100 bg-teal-50/50">
-        <div ref={containerRef} aria-label="추천 장소 지도" aria-busy={places.length > 0 && status === "loading"} className="h-80 w-full sm:h-96 lg:h-[28rem]" />
-        {places.length === 0 ? (
-          <p className="absolute inset-0 z-10 flex items-center justify-center p-6 text-center text-sm text-slate-600">지도에 표시할 추천 장소가 없습니다.</p>
+        <div ref={containerRef} aria-label="추천 장소 지도" aria-busy={entries.length > 0 && status === "loading"} className="h-80 w-full sm:h-96 lg:h-[28rem]" />
+        {entries.length === 0 ? (
+          <p className="absolute inset-0 z-10 flex items-center justify-center p-6 text-center text-sm text-slate-600">{places.length > 0 ? "장소의 좌표가 확인되지 않아 지도에 표시할 수 없습니다." : "지도에 표시할 추천 장소가 없습니다."}</p>
         ) : status !== "ready" && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-teal-50 p-6 text-center">
             {status === "loading" ? <p role="status" className="rounded-full border border-teal-100 bg-white px-5 py-3 text-sm font-medium text-teal-800">지도를 불러오는 중입니다…</p> : (
@@ -131,10 +125,11 @@ export default function KakaoMap({ places }: { places: readonly Place[] }) {
         )}
       </div>
       <p aria-live="polite" className="mt-4 text-sm leading-6 text-slate-600">
-        {selected && status === "ready" ? `${selected.name} · ${categoryLabels[selected.category]}` : "번호 마커를 누르면 장소 이름과 카테고리를 볼 수 있어요."}
+        {entries.length > 0 && selected && status === "ready" ? `${selected.name} · ${categoryLabels[selected.category]}` : "번호 마커를 누르면 장소 이름과 카테고리를 볼 수 있어요."}
       </p>
       <p className="mt-2 text-xs leading-5 text-slate-500">
         추천 방문 순서를 직선으로 표시한 것으로 실제 이동 경로와 다를 수 있습니다.
+        {entries.length < places.length && ` 좌표 미확인·비정상 장소 ${places.length - entries.length}곳은 지도에서 제외했습니다.`}
       </p>
     </div>
   );

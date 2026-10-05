@@ -1,4 +1,8 @@
-import type { Interest, Place, PlaceCatalog, PlaceCategory, Score, Transport, UserProfile } from "../types/travel";
+import type { Place, PlaceCatalog, Score, Transport, UserProfile } from "../types/travel";
+import { CATEGORY_INTERESTS } from "./place-categories";
+import { hasCoordinates } from "./place-coordinates";
+
+export { CATEGORY_INTERESTS } from "./place-categories";
 
 /** 기본 점수는 최대 100점, 관광두레는 별도 가점입니다. */
 export const RECOMMENDATION_WEIGHTS = {
@@ -18,17 +22,6 @@ export const RECOMMENDATION_RULES = {
   cafeRestThreshold: 4,
   neutralMatch: 0.5,
 } as const;
-
-/** 사진 적합도는 현재 장소 데이터에 없으므로 임의로 추정하지 않습니다. */
-export const CATEGORY_INTERESTS: Readonly<Record<PlaceCategory, readonly Interest[]>> = {
-  nature: ["nature"],
-  sea: ["sea", "nature"],
-  culture: ["culture"],
-  experience: ["experience"],
-  korean: ["food"],
-  seafood: ["food"],
-  cafe: ["food"],
-};
 
 export interface ScoreDetail {
   /** 가중치를 적용하기 전의 일치도(0~1). */
@@ -63,7 +56,9 @@ export function calculateInterestMatch(profile: UserProfile, place: Place): numb
 
   // 음식점은 관심사와 음식 선호도를 동등하게 반영합니다. 음식 선호는 필터가 아닙니다.
   if (place.type !== "restaurant" || profile.preferredFood.length === 0) return categoryMatch;
-  const foodMatch = Number(profile.preferredFood.some((food) => food === place.category));
+  const foodMatch = place.category === "other-food"
+    ? RECOMMENDATION_RULES.neutralMatch
+    : Number(profile.preferredFood.some((food) => food === place.category));
   return (categoryMatch + foodMatch) / 2;
 }
 
@@ -94,8 +89,9 @@ export function scorePlace(profile: UserProfile, place: Place): ScoredPlace {
       `선호 활동량 ${profile.activityLevel}점과 장소 활동량 ${place.activityLevel}점의 차이를 반영했어요.`),
     rest: detail(rest, RECOMMENDATION_WEIGHTS.rest,
       `휴식 빈도 ${profile.restFrequency}점과 장소의 휴식 적합도 ${place.restScore}점을 반영했어요.`),
-    tourismDure: detail(Number(place.isTourismDure), RECOMMENDATION_WEIGHTS.tourismDure,
-      place.isTourismDure ? "등록 데이터의 관광두레 여부에 따라 가점을 적용했어요." : "관광두레 가점이 없는 장소예요."),
+    tourismDure: detail(Number(place.isTourismDure === true), RECOMMENDATION_WEIGHTS.tourismDure,
+      place.isTourismDure === null ? "관광두레 여부가 확인되지 않아 가점을 적용하지 않았어요."
+        : place.isTourismDure ? "등록 데이터의 관광두레 여부에 따라 가점을 적용했어요." : "관광두레 가점이 없는 장소예요."),
   };
   return { place, totalScore: Object.values(breakdown).reduce((sum, item) => sum + item.points, 0), breakdown };
 }
@@ -122,9 +118,7 @@ function minutes(time: UserProfile["startTime"]): number {
 
 /** 좌표 기준 직선 거리(km). 실제 도로 거리나 이동 시간이 아닙니다. */
 export function distanceKm(a: Place, b: Place): number {
-  const coords = [a.latitude, a.longitude, b.latitude, b.longitude];
-  if (!coords.every(Number.isFinite) || Math.abs(a.latitude) > 90 || Math.abs(b.latitude) > 90
-    || Math.abs(a.longitude) > 180 || Math.abs(b.longitude) > 180) return Infinity;
+  if (!hasCoordinates(a) || !hasCoordinates(b)) return Infinity;
   const rad = Math.PI / 180;
   const h = Math.sin((b.latitude - a.latitude) * rad / 2) ** 2
     + Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad)
@@ -158,8 +152,10 @@ export interface ScheduledStop {
 
 export function createSchedule(profile: UserProfile, stops: readonly ScoredPlace[]): ScheduledStop[] {
   let cursor = minutes(profile.startTime);
-  return stops.map((recommendation, index) => {
-    const travelMinutes = index === 0 ? 0 : estimateTravelMinutes(stops[index - 1].place, recommendation.place, profile.transport);
+  const routableStops = stops.filter(({ place }) => hasCoordinates(place)
+    && Number.isFinite(place.recommendedDuration) && place.recommendedDuration > 0);
+  return routableStops.map((recommendation, index) => {
+    const travelMinutes = index === 0 ? 0 : estimateTravelMinutes(routableStops[index - 1].place, recommendation.place, profile.transport);
     const arrivalMinutes = cursor + travelMinutes;
     cursor = arrivalMinutes + recommendation.place.recommendedDuration;
     return { recommendation, travelMinutes, arrivalMinutes, departureMinutes: cursor };
@@ -192,7 +188,7 @@ export function recommendPlacesWithBreakdown(profile: UserProfile, catalog: Plac
   if (!Number.isFinite(duration) || duration <= 0) return [];
   const count = duration >= RECOMMENDATION_RULES.extendedTripMinutes
     ? RECOMMENDATION_RULES.extendedAttractionCount : RECOMMENDATION_RULES.attractionCount;
-  const remaining = rankPlaces(profile, catalog.attractions);
+  const remaining = rankPlaces(profile, catalog.attractions.filter(hasCoordinates));
   const route: ScoredPlace[] = [];
   while (remaining.length && route.length < count) {
     const previous = route[route.length - 1];
@@ -207,7 +203,7 @@ export function recommendPlacesWithBreakdown(profile: UserProfile, catalog: Plac
   const limits = FOOD_DISTANCE_LIMITS[profile.transport];
   const used = new Set(route.map(({ place }) => place.id));
   const insertNearby = (candidates: readonly Place[]) => {
-    const options = rankPlaces(profile, candidates).flatMap((candidate) => {
+    const options = rankPlaces(profile, candidates.filter(hasCoordinates)).flatMap((candidate) => {
       if (used.has(candidate.place.id)) return [];
       const nearest = Math.min(...attractions.map(({ place }) => distanceKm(place, candidate.place)));
       if (nearest > limits.radius) return [];

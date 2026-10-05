@@ -9,6 +9,11 @@ export type PlaceCategory =
   | "experience"
   | "korean"
   | "seafood"
+  | "western"
+  | "chinese"
+  | "japanese"
+  | "fast-food"
+  | "other-food"
   | "cafe";
 
 export interface Place {
@@ -16,10 +21,10 @@ export interface Place {
   name: string;
   type: PlaceType;
   category: PlaceCategory;
-  address: string;
+  address: string | null;
   /** 위도와 경도는 십진수 도 단위입니다. */
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   description: string;
   /** 방문에 필요한 활동량입니다. */
   activityLevel: Score;
@@ -29,11 +34,14 @@ export interface Place {
   /** 휴식에 적합한 정도입니다. */
   restScore: Score;
   /** 주된 이용 공간이 실내이면 true입니다. */
-  indoor: boolean;
+  indoor: boolean | null;
   /** 권장 체류 시간(분). 이동 시간은 포함하지 않습니다. */
   recommendedDuration: number;
-  isTourismDure: boolean;
+  /** 확인되지 않은 관광두레 여부는 null입니다. */
+  isTourismDure: boolean | null;
 }
+
+export type GeocodedPlace = Place & { latitude: number; longitude: number };
 
 export type Companion = "solo" | "family" | "couple" | "friends";
 export type Transport = "car" | "public-transit" | "walking";

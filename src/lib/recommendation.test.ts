@@ -3,6 +3,8 @@ import { test } from "node:test";
 import { placeCatalog } from "../data/places";
 import type { Place, PlaceCatalog, UserProfile } from "../types/travel";
 import { rankPlaces, recommendPlaces, recommendPlacesWithBreakdown, RECOMMENDATION_WEIGHTS, scorePlace, distanceKm, FOOD_DISTANCE_LIMITS, createSchedule, estimateTravelMinutes } from "./recommendation";
+import { createMapEntries, hasCoordinates } from "./place-coordinates";
+import { PLACE_CATEGORY_LABELS, CATEGORY_INTERESTS } from "./place-categories";
 
 const places = [...placeCatalog.attractions, ...placeCatalog.restaurants, ...placeCatalog.cafes];
 const catalogOf = (items: readonly Place[]): PlaceCatalog => ({
@@ -60,15 +62,21 @@ test("빈 데이터, 후보 부족, 잘못된 시간, 정보 없는 관심사를
 
 
 test("유형별 데이터가 모두 보존되고 ID가 중복되지 않는다", () => {
-  assert.equal(placeCatalog.attractions.length, 7);
-  assert.equal(placeCatalog.restaurants.length, 3);
-  assert.equal(placeCatalog.cafes.length, 1);
-  assert.equal(new Set(places.map(p => p.id)).size, 11);
+  assert.equal(placeCatalog.attractions.length, 211);
+  assert.equal(placeCatalog.restaurants.length, 238);
+  assert.equal(placeCatalog.cafes.length, 41);
+  assert.equal(new Set(places.map(p => p.id)).size, places.length);
+  for (const id of ["daewangam-park", "taehwagang-national-garden", "ganjeolgot",
+    "jangsaengpo-whale-village", "onggi-village", "ulsan-grand-park", "bangudae-petroglyphs",
+    "hamyangjip-main", "eonyang-giwajip-bulgogi", "mijin-dol-gopchang", "nongdo-cafe"]) {
+    assert.ok(places.some(place => place.id === id), `${id} 보존`);
+  }
 });
 
 for (const transport of ["car", "public-transit", "walking"] as const) {
   test(`${transport}: 먼 고득점 음식점·카페는 제외하고 가까운 후보만 선택한다`, () => {
     const anchor = fixture({ id: "anchor" });
+    assert.ok(hasCoordinates(anchor));
     const items = [anchor, ...(["restaurant", "cafe"] as const).flatMap(type => [
       fixture({ id: `${type}-near`, type, category: type === "cafe" ? "cafe" : "korean", longitude: anchor.longitude + 0.001, familyScore: 1 }),
       fixture({ id: `${type}-far`, type, category: type === "cafe" ? "cafe" : "korean", longitude: anchor.longitude + 0.1, familyScore: 5, isTourismDure: true }),
@@ -117,9 +125,53 @@ test("여행 길이에 따라 관광지 개수 상한을 적용한다", () => {
 });
 
 test("잘못된 음식점 좌표는 추천하지 않는다", () => {
-  for (const latitude of [NaN, Infinity, 91]) {
+  for (const latitude of [null, NaN, Infinity, 91]) {
     assert.equal(recommendPlaces(profile, catalogOf([places[0], fixture({ id: "invalid", type: "restaurant", latitude })])).length, 1);
   }
+});
+
+test("모든 등록 장소의 카테고리는 점수와 화면 라벨에서 지원된다", () => {
+  places.forEach(place => {
+    assert.ok(PLACE_CATEGORY_LABELS[place.category], place.name);
+    assert.ok(CATEGORY_INTERESTS[place.category], place.name);
+    assert.ok(Number.isFinite(scorePlace(profile, place).totalScore), place.name);
+    assert.equal(place.latitude === null, place.longitude === null, place.name);
+  });
+});
+
+test("미확인 값은 유지하고 관광두레 미확인에 가점을 주지 않는다", () => {
+  const unknown = fixture({ address: null, latitude: null, longitude: null, indoor: null, isTourismDure: null });
+  const scored = scorePlace(profile, unknown);
+  assert.equal(scored.breakdown.tourismDure.points, 0);
+  assert.match(scored.breakdown.tourismDure.reason, /확인되지/);
+  assert.equal(unknown.address, null);
+  assert.equal(unknown.indoor, null);
+  assert.equal(rankPlaces(profile, [unknown]).length, 1);
+  assert.equal(distanceKm(unknown, places[0]), Infinity);
+  assert.deepEqual(recommendPlaces(profile, catalogOf([unknown])), []);
+});
+
+test("미확인·부분 누락 좌표는 경로와 지도에서 제외하며 방문 번호는 보존한다", () => {
+  const a = fixture({ id: "a", recommendedDuration: 30 });
+  const missing = fixture({ id: "missing", latitude: null, longitude: null });
+  const partial = fixture({ id: "partial", longitude: null });
+  const invalid = fixture({ id: "invalid", latitude: 91 });
+  const b = fixture({ id: "b", recommendedDuration: 30 });
+  const mixed = [a, missing, partial, invalid, b];
+  assert.deepEqual(createMapEntries(mixed).map(({ place, visitNumber }) => [place.id, visitNumber]), [["a", 1], ["b", 5]]);
+  assert.deepEqual(createMapEntries([missing, partial, invalid]), []);
+  const schedule = createSchedule(profile, mixed.map(place => scorePlace(profile, place)));
+  assert.deepEqual(schedule.map(stop => stop.recommendation.place.id), ["a", "b"]);
+  assert.ok(schedule.every(stop => Number.isFinite(stop.departureMinutes)));
+  assert.deepEqual(recommendPlaces(profile, catalogOf(mixed)).map(place => place.id), ["a", "b"]);
+});
+
+test("양식 선호는 양식 카테고리에 반영되며 미분류 음식점은 중립 점수이다", () => {
+  const western = fixture({ type: "restaurant", category: "western" });
+  assert.ok(scorePlace({ ...profile, preferredFood: ["western"] }, western).totalScore
+    > scorePlace({ ...profile, preferredFood: ["korean"] }, western).totalScore);
+  const other = fixture({ type: "restaurant", category: "other-food" });
+  assert.equal(scorePlace({ ...profile, interests: [], preferredFood: ["western"] }, other).breakdown.interest.match, 0.5);
 });
 
 
