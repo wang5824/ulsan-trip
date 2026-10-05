@@ -348,3 +348,25 @@ test("표시용 취향 적합도는 유명도·관광두레 가점과 독립적�
     assert.ok(Number.isInteger(fit) && fit >= 0 && fit <= 100);
   });
 });
+
+test("혼자 여행·관심사 무관·휴식 불필요는 맞는 활동의 적합도를 낮추지 않는다", () => {
+  const unrestricted = { ...profile, companion: "solo" as const, interests: [], preferredFood: [], restFrequency: 1 as const };
+  assert.equal(calculatePreferenceFit(scorePlace(unrestricted, fixture({ activityLevel: 2, restScore: 1 }))), 100);
+  const moderateRest = { ...unrestricted, restFrequency: 3 as const };
+  assert.equal(calculatePreferenceFit(scorePlace(moderateRest, fixture({ activityLevel: 2, restScore: 5 }))), 100);
+  assert.ok(calculatePreferenceFit(scorePlace(moderateRest, fixture({ activityLevel: 5, restScore: 1 }))) < 100);
+});
+
+test("음식점과 카페 적합도는 관광 관심사의 불일치로 감점하지 않는다", () => {
+  const selected = { ...profile, companion: "solo" as const, interests: ["nature"] as UserProfile["interests"], restFrequency: 1 as const, activityLevel: 1 as const };
+  assert.equal(calculatePreferenceFit(scorePlace(selected, fixture({ type: "restaurant", category: "korean", activityLevel: 1 }))), 100);
+  assert.equal(calculatePreferenceFit(scorePlace(selected, fixture({ type: "cafe", category: "cafe", activityLevel: 1 }))), 100);
+});
+
+test("다음 관광지는 조금 더 멀어도 취향에 잘 맞는 후보를 우선한다", () => {
+  const anchor = fixture({ id: "a", category: "nature", activityLevel: 2, recommendedDuration: 30 });
+  const nearPoor = fixture({ id: "poor", category: "culture", activityLevel: 5, longitude: anchor.longitude! + 0.001, recommendedDuration: 30 });
+  const better = fixture({ id: "better", category: "nature", activityLevel: 2, longitude: anchor.longitude! + 0.02, recommendedDuration: 30 });
+  const result = recommendPlaces({ ...profile, requiredPlaceIds: ["a"] }, catalogOf([anchor, nearPoor, better]));
+  assert.deepEqual(result.slice(0, 2).map(place => place.id), ["a", "better"]);
+});

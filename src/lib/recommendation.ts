@@ -37,17 +37,39 @@ export type ScoreBreakdown = Record<keyof typeof RECOMMENDATION_WEIGHTS, ScoreDe
 export interface ScoredPlace {
   place: Place;
   totalScore: number;
+  preferenceFit: number;
   breakdown: ScoreBreakdown;
 }
 
 /** 화면용 취향 적합도. 유명도·관광두레는 제외하며 만족 확률을 뜻하지 않습니다. */
 export function calculatePreferenceFit(recommendation: ScoredPlace): number {
-  const { interest, companion, activity, rest } = recommendation.breakdown;
-  const details = [interest, companion, activity, rest];
+  return recommendation.preferenceFit;
+}
+
+function preferenceFit(profile: UserProfile, place: Place, breakdown: ScoreBreakdown): number {
+  const details = [breakdown.activity];
+  if (profile.companion !== "solo") details.push(breakdown.companion);
+  if (place.type === "attraction" && profile.interests.some(interest => ["nature", "sea", "culture", "experience"].includes(interest))) {
+    details.push(breakdown.interest);
+  }
+  if (place.type === "restaurant") {
+    if (profile.preferredFood.length && place.category !== "other-food") {
+      details.push(detail(Number(profile.preferredFood.some(food => food === place.category)), RECOMMENDATION_WEIGHTS.interest, ""));
+    } else if (profile.interests.includes("food")) {
+      details.push(detail(1, RECOMMENDATION_WEIGHTS.interest, ""));
+    }
+  }
+  // 휴식 필요도는 중요도로 반영하고, 휴식이 적게 필요하다는 이유로 감점하지 않습니다.
+  const restImportance = (profile.restFrequency - 1) / 4;
+  if (restImportance > 0) details.push(detail((place.restScore - 1) / 4, RECOMMENDATION_WEIGHTS.rest * restImportance, ""));
   const maximum = details.reduce((sum, item) => sum + item.weight, 0);
-  if (maximum <= 0) return 0;
   const points = details.reduce((sum, item) => sum + item.points, 0);
-  return Math.round(Math.min(1, Math.max(0, points / maximum)) * 100);
+  return maximum > 0 ? Math.round(Math.min(1, Math.max(0, points / maximum)) * 100) : 0;
+}
+
+/** 취향에 더 잘 맞는 후보를 우선하기 위한 내부 선정 점수입니다. */
+function selectionScore(candidate: ScoredPlace): number {
+  return candidate.totalScore + candidate.preferenceFit * 0.5;
 }
 
 function detail(match: number, weight: number, reason: string): ScoreDetail {
@@ -126,11 +148,11 @@ export function scorePlace(profile: UserProfile, place: Place): ScoredPlace {
       place.isTourismDure === null ? "관광두레 여부가 확인되지 않아 가점을 적용하지 않았어요."
         : place.isTourismDure ? "등록 데이터의 관광두레 여부에 따라 가점을 적용했어요." : "관광두레 가점이 없는 장소예요."),
   };
-  return { place, totalScore: Object.values(breakdown).reduce((sum, item) => sum + item.points, 0), breakdown };
+  return { place, totalScore: Object.values(breakdown).reduce((sum, item) => sum + item.points, 0), preferenceFit: preferenceFit(profile, place, breakdown), breakdown };
 }
 
 function compareScores(a: ScoredPlace, b: ScoredPlace): number {
-  return b.totalScore - a.totalScore || (a.place.id < b.place.id ? -1 : a.place.id > b.place.id ? 1 : 0);
+  return selectionScore(b) - selectionScore(a) || (a.place.id < b.place.id ? -1 : a.place.id > b.place.id ? 1 : 0);
 }
 
 /** 같은 ID는 점수가 가장 높은 항목 하나만 유지합니다. 동점은 ID순입니다. */
@@ -256,9 +278,8 @@ export function recommendPlacesWithBreakdown(profile: UserProfile, catalog: Plac
     if (previous) remaining.sort((a, b) => {
       const distanceA = distanceKm(previous.place, a.place);
       const distanceB = distanceKm(previous.place, b.place);
-      if (profile.popularityPreference === "any") return distanceA - distanceB || compareScores(a, b);
       const penalty = profile.transport === "car" ? 0.3 : profile.transport === "public-transit" ? 1 : 3;
-      return (b.totalScore - distanceB * penalty) - (a.totalScore - distanceA * penalty) || compareScores(a, b);
+      return (selectionScore(b) - distanceB * penalty) - (selectionScore(a) - distanceA * penalty) || compareScores(a, b);
     });
     const candidate = remaining.shift()!;
     if (Number.isFinite(distanceKm(candidate.place, candidate.place))
@@ -284,7 +305,7 @@ export function recommendPlacesWithBreakdown(profile: UserProfile, catalog: Plac
         const proposed = [...route];
         proposed.splice(index + 1, 0, candidate);
         if (!fitsSchedule(profile, proposed)) return [];
-        return [{ candidate, index, detour, priority: candidate.totalScore - 20 * detour / limits.detour }];
+        return [{ candidate, index, detour, priority: selectionScore(candidate) - 20 * detour / limits.detour }];
       });
     });
     options.sort((a, b) => b.priority - a.priority || a.detour - b.detour || compareScores(a.candidate, b.candidate) || a.index - b.index);
