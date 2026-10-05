@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { surveyQuestions, type SurveyAnswers } from "../../data/survey";
 import { buildUserProfile, isQuestionAnswered } from "../../lib/survey";
+import RequiredPlacesPicker from "./RequiredPlacesPicker";
+import { placeCatalog } from "../../data/places";
+import { getRequiredPlaceIssues } from "../../lib/recommendation";
+import type { TravelRegion } from "../../types/travel";
 import { useRouter } from "next/navigation";
 import { useTravel } from "../TravelProvider";
 
@@ -17,9 +21,11 @@ export default function SurveyForm() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const question = surveyQuestions[step];
   const isLast = step === surveyQuestions.length - 1;
-  const canContinue = isQuestionAnswered(question.id, answers);
+  const draftProfile = buildUserProfile(answers);
+  const requiredIssues = draftProfile ? getRequiredPlaceIssues(draftProfile, placeCatalog) : [];
+  const canContinue = isQuestionAnswered(question.id, answers) && (!isLast || requiredIssues.length === 0);
   const progress = isPending ? 100 : Math.round((step / surveyQuestions.length) * 100);
-  const invalidTime = question.id === "time" && answers.startTime && answers.endTime && !canContinue;
+  const invalidTime = question.id === "time" && answers.startTime && answers.endTime && !isQuestionAnswered("time", answers);
 
   useEffect(() => { headingRef.current?.focus(); }, [step]);
 
@@ -48,8 +54,12 @@ export default function SurveyForm() {
 
         <form onSubmit={submit} className="rounded-3xl border border-teal-900/5 bg-white p-5 shadow-sm sm:p-9">
           <h1 id="question-title" ref={headingRef} tabIndex={-1} className="text-2xl font-bold leading-snug tracking-tight outline-none sm:text-3xl">{question.title}</h1>
-          <p id="question-help" className="mb-8 mt-4 text-sm leading-7 text-slate-500">{question.id === "time" ? "같은 날의 시작·종료 시간을 선택해주세요. 한국 시각 기준입니다." : "가장 가까운 답변 하나를 선택해주세요."}</p>
-          {question.id === "time" ? (
+          <p id="question-help" className="mb-8 mt-4 text-sm leading-7 text-slate-500">{question.id === "time" ? "같은 날의 시작·종료 시간을 선택해주세요. 한국 시각 기준입니다." : question.id === "requiredPlaces" ? "선택 사항이에요. 원하는 장소가 없으면 그대로 다음으로 넘어가세요." : "가장 가까운 답변 하나를 선택해주세요."}</p>
+          {question.id === "requiredPlaces" ? (
+            <RequiredPlacesPicker selectedIds={answers.requiredPlaceIds ?? []} region={answers.region as TravelRegion | undefined}
+              onChange={requiredPlaceIds => setAnswers(current => ({ ...current, requiredPlaceIds }))}
+              onExpandRegion={() => setAnswers(current => ({ ...current, region: "all" }))} />
+          ) : question.id === "time" ? (
             <div className="space-y-5">
               {([ ["startTime", "시작 시간"], ["endTime", "종료 시간"] ] as const).map(([key, label]) => (
                 <div key={key}>
@@ -69,9 +79,14 @@ export default function SurveyForm() {
               ))}
             </fieldset>
           )}
+          {isLast && requiredIssues.length > 0 && <div role="alert" className="mt-5 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            <ul className="list-disc space-y-2 pl-4">{requiredIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>
+            <p className="mt-2">시간을 조정하거나 이전 단계에서 필수 장소를 변경해주세요.</p>
+            {answers.region !== "all" && <button type="button" onClick={() => setAnswers(current => ({ ...current, region: "all" }))} className="mt-2 min-h-10 rounded-lg border border-amber-300 px-3 font-semibold">여행 지역을 울산 전체로 변경</button>}
+          </div>}
           <div className="mt-8 flex gap-3 border-t border-slate-100 pt-6">
             <button type="button" disabled={step === 0 || isPending} onClick={() => setStep((current) => current - 1)} className={`${buttonStyle} flex-1 bg-slate-100 hover:bg-slate-200`}>이전</button>
-            <button type="submit" disabled={!canContinue || isPending} className={`${buttonStyle} flex-1 bg-teal-700 text-white hover:bg-teal-800`}>{isPending ? "이동 중…" : isLast ? "추천 결과 보기" : "다음"}</button>
+            <button type="submit" disabled={!canContinue || isPending} className={`${buttonStyle} flex-1 bg-teal-700 text-white hover:bg-teal-800`}>{isPending ? "이동 중…" : isLast ? "추천 결과 보기" : question.id === "requiredPlaces" && !answers.requiredPlaceIds?.length ? "선택 없이 다음" : "다음"}</button>
           </div>
         </form>
       </div>

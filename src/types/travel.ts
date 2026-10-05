@@ -1,6 +1,11 @@
 /** 1은 가장 낮은 수준, 5는 가장 높은 수준입니다. */
 export type Score = 1 | 2 | 3 | 4 | 5;
 
+export const DISTRICT_LABELS = { ulju: "울주군", buk: "북구", dong: "동구", jung: "중구", nam: "남구" } as const;
+export type District = keyof typeof DISTRICT_LABELS;
+export type TravelRegion = District | "all";
+export type PopularityPreference = "famous" | "hidden" | "any";
+
 export type PlaceType = "attraction" | "restaurant" | "cafe";
 export type PlaceCategory =
   | "nature"
@@ -26,6 +31,9 @@ export interface Place {
   latitude: number | null;
   longitude: number | null;
   description: string;
+  district: District | null;
+  /** 초기 편집 유명도(1~5). 방문객 수나 실시간 인기도가 아닙니다. */
+  popularityScore: Score;
   /** 방문에 필요한 활동량입니다. */
   activityLevel: Score;
   familyScore: Score;
@@ -56,6 +64,10 @@ type Minute = `${0 | 1 | 2 | 3 | 4 | 5}${Digit}`;
 export type TimeOfDay = `${Hour}:${Minute}`;
 
 export interface UserProfile {
+  /** 반드시 방문할 장소 ID. 생략하거나 빈 배열이면 제한이 없습니다. 최대 2곳. */
+  requiredPlaceIds?: string[];
+  popularityPreference: PopularityPreference;
+  region: TravelRegion;
   companion: Companion;
   transport: Transport;
   /** 사용자가 선호하는 활동량입니다. */

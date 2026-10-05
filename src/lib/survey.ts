@@ -6,6 +6,10 @@ function isTime(value: string | undefined): value is TimeOfDay {
 }
 
 export function isQuestionAnswered(id: QuestionId, answers: SurveyAnswers): boolean {
+  if (id === "requiredPlaces") {
+    const ids = answers.requiredPlaceIds ?? [];
+    return ids.length <= 2 && new Set(ids).size === ids.length && ids.every(id => typeof id === "string" && id.length > 0);
+  }
   if (id === "time") {
     return isTime(answers.startTime) && isTime(answers.endTime)
       && answers.endTime > answers.startTime;
@@ -23,12 +27,15 @@ function toScore(value: string | undefined): Score | null {
 /** 기존 프로필은 관심도 수치 대신 목록을 사용하므로 4점 이상만 관심사로 변환합니다. */
 export function buildUserProfile(answers: SurveyAnswers): UserProfile | null {
   if (!surveyQuestions.every(({ id }) => isQuestionAnswered(id, answers))) return null;
-  const { companion, transport, startTime, endTime, preferredFood } = answers;
+  const { companion, transport, startTime, endTime, preferredFood, popularityPreference, region } = answers;
   const activityLevel = toScore(answers.activityLevel);
   const restFrequency = toScore(answers.restFrequency);
   if ((companion !== "solo" && companion !== "couple" && companion !== "friends" && companion !== "family")
     || (transport !== "car" && transport !== "public-transit")
     || !activityLevel || !restFrequency || !isTime(startTime) || !isTime(endTime)) return null;
+
+  if (popularityPreference !== "famous" && popularityPreference !== "hidden" && popularityPreference !== "any") return null;
+  if (region !== "all" && region !== "ulju" && region !== "buk" && region !== "dong" && region !== "jung" && region !== "nam") return null;
 
   const foods: FoodPreference[] = [];
   if (preferredFood === "korean" || preferredFood === "seafood" || preferredFood === "western" || preferredFood === "vegetarian") {
@@ -36,7 +43,8 @@ export function buildUserProfile(answers: SurveyAnswers): UserProfile | null {
   }
   const interestKeys = ["nature", "food", "culture", "experience"] as const satisfies readonly Interest[];
   return {
-    companion, transport, activityLevel, restFrequency,
+    requiredPlaceIds: [...(answers.requiredPlaceIds ?? [])],
+    popularityPreference, region, companion, transport, activityLevel, restFrequency,
     interests: interestKeys.filter((interest) => Number(answers[interest]) >= 4),
     preferredFood: foods, startTime, endTime,
   };

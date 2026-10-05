@@ -6,10 +6,11 @@ export { CATEGORY_INTERESTS } from "./place-categories";
 
 /** 기본 점수는 최대 100점, 관광두레는 별도 가점입니다. */
 export const RECOMMENDATION_WEIGHTS = {
-  interest: 35,
-  companion: 25,
-  activity: 20,
-  rest: 20,
+  interest: 25,
+  companion: 20,
+  activity: 15,
+  rest: 15,
+  popularity: 25,
   tourismDure: 8,
 } as const;
 
@@ -89,6 +90,11 @@ export function scorePlace(profile: UserProfile, place: Place): ScoredPlace {
       `선호 활동량 ${profile.activityLevel}점과 장소 활동량 ${place.activityLevel}점의 차이를 반영했어요.`),
     rest: detail(rest, RECOMMENDATION_WEIGHTS.rest,
       `휴식 빈도 ${profile.restFrequency}점과 장소의 휴식 적합도 ${place.restScore}점을 반영했어요.`),
+    popularity: detail(profile.popularityPreference === "any" ? 0.5
+      : profile.popularityPreference === "famous" ? (place.popularityScore - 1) / 4 : (5 - place.popularityScore) / 4,
+      RECOMMENDATION_WEIGHTS.popularity,
+      profile.popularityPreference === "any" ? "유명도에 제한 없이 추천해요."
+        : `${profile.popularityPreference === "famous" ? "유명한 대표 명소" : "덜 알려진 장소"} 선호와 편집 유명도 ${place.popularityScore}/5를 반영했어요.`),
     tourismDure: detail(Number(place.isTourismDure === true), RECOMMENDATION_WEIGHTS.tourismDure,
       place.isTourismDure === null ? "관광두레 여부가 확인되지 않아 가점을 적용하지 않았어요."
         : place.isTourismDure ? "등록 데이터의 관광두레 여부에 따라 가점을 적용했어요." : "관광두레 가점이 없는 장소예요."),
@@ -102,7 +108,7 @@ function compareScores(a: ScoredPlace, b: ScoredPlace): number {
 
 /** 같은 ID는 점수가 가장 높은 항목 하나만 유지합니다. 동점은 ID순입니다. */
 export function rankPlaces(profile: UserProfile, places: readonly Place[]): ScoredPlace[] {
-  const ranked = places.map((place) => scorePlace(profile, place)).sort(compareScores);
+  const ranked = places.filter((place) => profile.region === "all" || place.district === profile.region).map((place) => scorePlace(profile, place)).sort(compareScores);
   const seen = new Set<string>();
   return ranked.filter(({ place }) => {
     if (seen.has(place.id)) return false;
@@ -171,6 +177,31 @@ function fitsSchedule(profile: UserProfile, route: readonly ScoredPlace[]): bool
   return schedule.length === 0 || schedule[schedule.length - 1].departureMinutes <= minutes(profile.endTime);
 }
 
+/** 필수 장소가 조건에 맞지 않으면 일부만 누락하지 않고 조정할 내용을 안내합니다. */
+export function getRequiredPlaceIssues(profile: UserProfile, catalog: PlaceCatalog): string[] {
+  const ids = profile.requiredPlaceIds ?? [];
+  if (ids.length > 2 || new Set(ids).size !== ids.length) return ["필수 장소는 중복 없이 최대 2곳까지 선택해주세요."];
+  const places = [...catalog.attractions, ...catalog.restaurants, ...catalog.cafes];
+  const issues: string[] = [];
+  const required: ScoredPlace[] = [];
+  for (const id of ids) {
+    const place = places.find(place => place.id === id);
+    if (!place) { issues.push("선택한 필수 장소를 찾을 수 없습니다. 다시 선택해주세요."); continue; }
+    if (!hasCoordinates(place) || !Number.isFinite(place.recommendedDuration) || place.recommendedDuration <= 0) {
+      issues.push(`${place.name}: 위치 또는 체류 시간 정보가 없어 일정에 포함할 수 없습니다. 다른 장소를 선택해주세요.`);
+      continue;
+    }
+    if (profile.region !== "all" && place.district !== profile.region) {
+      issues.push(`${place.name}: 선택한 여행 지역 밖이거나 지역 미확인 장소입니다. 여행 지역을 울산 전체로 바꾸거나 필수 장소를 조정해주세요.`);
+    }
+    required.push(scorePlace(profile, place));
+  }
+  if (required.length && !fitsSchedule(profile, required)) {
+    issues.push("필수 장소의 체류·이동 시간이 여행 시간을 초과합니다. 여행 시간을 늘리거나 필수 장소를 줄여주세요.");
+  }
+  return issues;
+}
+
 /** 각 추가 방문의 관광지 반경 및 전체 일정에 더해지는 우회 거리 상한(km). */
 export const FOOD_DISTANCE_LIMITS = {
   car: { radius: 3, detour: 4 },
@@ -188,18 +219,27 @@ export function recommendPlacesWithBreakdown(profile: UserProfile, catalog: Plac
   if (!Number.isFinite(duration) || duration <= 0) return [];
   const count = duration >= RECOMMENDATION_RULES.extendedTripMinutes
     ? RECOMMENDATION_RULES.extendedAttractionCount : RECOMMENDATION_RULES.attractionCount;
-  const remaining = rankPlaces(profile, catalog.attractions.filter(hasCoordinates));
-  const route: ScoredPlace[] = [];
-  while (remaining.length && route.length < count) {
+  if (getRequiredPlaceIssues(profile, catalog).length) return [];
+  const requiredIds = new Set(profile.requiredPlaceIds ?? []);
+  const allPlaces = [...catalog.attractions, ...catalog.restaurants, ...catalog.cafes];
+  const route: ScoredPlace[] = (profile.requiredPlaceIds ?? []).map(id => scorePlace(profile, allPlaces.find(place => place.id === id)!));
+  const remaining = rankPlaces(profile, catalog.attractions.filter(place => hasCoordinates(place) && !requiredIds.has(place.id)));
+  while (remaining.length && route.filter(({ place }) => place.type === "attraction").length < count) {
     const previous = route[route.length - 1];
-    if (previous) remaining.sort((a, b) => distanceKm(previous.place, a.place) - distanceKm(previous.place, b.place) || compareScores(a, b));
+    if (previous) remaining.sort((a, b) => {
+      const distanceA = distanceKm(previous.place, a.place);
+      const distanceB = distanceKm(previous.place, b.place);
+      if (profile.popularityPreference === "any") return distanceA - distanceB || compareScores(a, b);
+      const penalty = profile.transport === "car" ? 0.3 : profile.transport === "public-transit" ? 1 : 3;
+      return (b.totalScore - distanceB * penalty) - (a.totalScore - distanceA * penalty) || compareScores(a, b);
+    });
     const candidate = remaining.shift()!;
     if (Number.isFinite(distanceKm(candidate.place, candidate.place))
       && Number.isFinite(candidate.place.recommendedDuration) && candidate.place.recommendedDuration > 0
       && fitsSchedule(profile, [...route, candidate])) route.push(candidate);
   }
-  const attractions = [...route];
-  if (!attractions.length) return [];
+  const attractions = route.filter(({ place }) => place.type === "attraction");
+  if (!route.length) return [];
   const limits = FOOD_DISTANCE_LIMITS[profile.transport];
   const used = new Set(route.map(({ place }) => place.id));
   const insertNearby = (candidates: readonly Place[]) => {
@@ -227,8 +267,8 @@ export function recommendPlacesWithBreakdown(profile: UserProfile, catalog: Plac
       used.add(best.candidate.place.id);
     }
   };
-  insertNearby(catalog.restaurants);
-  if (profile.restFrequency >= RECOMMENDATION_RULES.cafeRestThreshold) insertNearby(catalog.cafes);
+  if (!route.some(({ place }) => place.type === "restaurant")) insertNearby(catalog.restaurants);
+  if (!route.some(({ place }) => place.type === "cafe") && profile.restFrequency >= RECOMMENDATION_RULES.cafeRestThreshold) insertNearby(catalog.cafes);
   return route;
 }
 

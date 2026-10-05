@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "울산, 나의 여행 | 취향에 맞는 여행 코스",
-  description: "10개의 질문으로 나의 여행 스타일을 알아보고 울산 여행 코스를 만나보세요.",
+  description: "13개의 질문(선택 항목 1개 포함)으로 나의 여행 스타일을 알아보고 울산 여행 코스를 만나보세요.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

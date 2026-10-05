@@ -10,7 +10,7 @@ export default function Home() {
           <h1 className="text-4xl font-bold leading-[1.25] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">당신에게 맞는<br /><span className="text-teal-700">울산을 발견하세요</span></h1>
           <p className="mt-6 max-w-md text-base leading-8 text-slate-600">간단한 설문을 기반으로 울산 관광지와 로컬 맛집을 추천하는 서비스입니다.<br />함께하는 사람과 여행 취향에 맞춰, 나만의 울산 여행을 찾아보세요.</p>
           <Link href="/survey" className="mt-8 inline-flex min-h-14 w-full items-center justify-between gap-8 rounded-2xl bg-teal-700 px-6 py-4 font-semibold text-white shadow-sm transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700 sm:w-auto">나만의 여행 찾기 <span aria-hidden="true">→</span></Link>
-          <p className="mt-4 text-xs leading-5 text-slate-500">10개의 질문 · 로그인 없이 시작해요</p>
+          <p className="mt-4 text-xs leading-5 text-slate-500">13개의 질문(선택 항목 1개 포함) · 로그인 없이 시작해요</p>
         </div>
         <div className="relative overflow-hidden rounded-[2rem] border border-teal-100 bg-cyan-50 p-6 sm:p-8">
           <figure className="overflow-hidden rounded-2xl bg-white">
@@ -50,7 +50,7 @@ export default function Home() {
           <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">어디부터 가야 할지 고민된다면, 좋아하는 여행부터 이야기해주세요. 울산을 알아가는 하루를 함께 그려드릴게요.</p>
           <div className="mt-8 grid gap-4 sm:grid-cols-3 sm:gap-6">
             {[
-              ["01", "맞춤형 추천", "동행인, 관심사, 활동량과 휴식 취향까지. 10개의 질문을 바탕으로 나에게 어울리는 장소와 추천 이유를 확인해요."],
+              ["01", "맞춤형 추천", "동행인, 관심사, 활동량과 휴식 취향까지. 13개의 질문(선택 항목 1개 포함)을 바탕으로 나에게 어울리는 장소와 추천 이유를 확인해요."],
               ["02", "울산 로컬 여행", "관광지와 로컬 맛집, 쉬어갈 카페를 함께 살펴보세요. 추천 일정과 지도에서 방문 순서를 한눈에 확인할 수 있어요."],
               ["03", "관광두레 업체 소개", "관광두레로 등록된 업체는 별도 배지로 소개하고 추천에 가점을 더해요. 여행 취향과의 적합도도 함께 고려해요."],
             ].map(([number, title, description]) => (

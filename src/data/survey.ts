@@ -7,6 +7,17 @@ const ratingOptions = [
 ];
 
 export const surveyQuestions = [
+  { id: "popularityPreference", title: "어떤 장소를 더 좋아하시나요?", options: [
+    { value: "famous", label: "유명한 대표 관광지 위주로 가고 싶어요" },
+    { value: "hidden", label: "덜 알려진 숨은 장소를 발견하고 싶어요" },
+    { value: "any", label: "유명도는 상관없어요" },
+  ] },
+  { id: "region", title: "울산의 어느 지역을 여행하고 싶으신가요?", options: [
+    { value: "all", label: "울산 전체 · 지역 제한 없이 추천" },
+    { value: "ulju", label: "울주군" }, { value: "buk", label: "북구" },
+    { value: "dong", label: "동구" }, { value: "jung", label: "중구" },
+    { value: "nam", label: "남구" },
+  ] },
   { id: "companion", title: "누구와 여행하시나요?", options: [
     { value: "solo", label: "혼자" }, { value: "couple", label: "연인" },
     { value: "friends", label: "친구" }, { value: "family", label: "가족" },
@@ -29,11 +40,13 @@ export const surveyQuestions = [
     { value: "seafood", label: "해산물" }, { value: "western", label: "양식" },
     { value: "vegetarian", label: "채식" },
   ] },
+  { id: "requiredPlaces", title: "꼭 방문하고 싶은 장소가 있나요? (선택)", options: [] },
   { id: "time", title: "몇 시부터 몇 시까지 여행할 수 있나요?", options: [] },
 ] as const;
 
 export type QuestionId = (typeof surveyQuestions)[number]["id"];
-export type SurveyAnswers = Partial<Record<Exclude<QuestionId, "time">, string>> & {
+export type SurveyAnswers = Partial<Record<Exclude<QuestionId, "time" | "requiredPlaces">, string>> & {
+  requiredPlaceIds?: string[];
   startTime?: string;
   endTime?: string;
 };
