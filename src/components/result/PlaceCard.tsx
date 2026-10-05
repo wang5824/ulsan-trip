@@ -1,4 +1,4 @@
-import type { ScoredPlace } from "../../lib/recommendation";
+import { calculatePreferenceFit, type ScoredPlace } from "../../lib/recommendation";
 import { DISTRICT_LABELS } from "../../types/travel";
 import type { PlaceType } from "../../types/travel";
 import { PLACE_CATEGORY_LABELS as categoryLabels } from "../../lib/place-categories";
@@ -8,9 +8,10 @@ const typeLabels: Record<PlaceType, string> = {
 
 export default function PlaceCard({ recommendation }: { recommendation: ScoredPlace }) {
   const { place, breakdown } = recommendation;
-  // 가점이 있는 항목 중 기여도가 큰 설명을 표시합니다. 관광두레는 별도 배지로 표시합니다.
+  const preferenceFit = calculatePreferenceFit(recommendation);
+  // 취향과 충분히 맞는 항목만 설명해 중립값을 추천 이유로 제시하지 않습니다.
   const reasons = [breakdown.interest, breakdown.companion, breakdown.activity, breakdown.rest]
-    .filter((item) => item.points > 0)
+    .filter((item) => item.points > 0 && item.match >= (item === breakdown.rest ? 0.5 : 0.75))
     .sort((a, b) => b.points - a.points)
     .slice(0, 2);
 
@@ -30,12 +31,15 @@ export default function PlaceCard({ recommendation }: { recommendation: ScoredPl
       <p className="mt-2 text-xs leading-5 text-slate-500">{place.address ?? "주소 미확인"}</p>
       <p className="mt-4 text-sm leading-7 text-slate-600">{place.description}</p>
       <div className="mt-5 rounded-2xl border border-teal-100/60 bg-teal-50/50 p-4">
-        <p className="text-xs font-bold text-teal-900">이런 점이 잘 맞아요</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-bold text-teal-900">이런 점이 잘 맞아요</p>
+          <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-sm font-bold tabular-nums text-teal-800">취향 적합도 {preferenceFit}%</span>
+        </div>
         {reasons.length > 0 ? (
           <ul className="mt-2 list-disc space-y-2 pl-4 text-sm leading-6 text-teal-900">
             {reasons.map((item) => <li key={item.reason}>{item.reason}</li>)}
           </ul>
-        ) : <p className="mt-2 text-sm text-teal-900">코스에 필요한 장소 유형을 고려한 후보예요.</p>}
+        ) : <p className="mt-2 text-sm text-teal-900">다른 방문 장소와 함께 둘러볼 수 있도록 일정에 담았어요.</p>}
       </div>
     </article>
   );

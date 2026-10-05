@@ -1,5 +1,5 @@
 import { DISTRICT_LABELS } from "../types/travel";
-import { getRequiredPlaceIssues } from "./recommendation";
+import { calculatePreferenceFit, getRequiredPlaceIssues } from "./recommendation";
 import { isQuestionAnswered, buildUserProfile } from "./survey";
 import type { SurveyAnswers } from "../data/survey";
 import assert from "node:assert/strict";
@@ -334,4 +334,17 @@ test("필수 장소 질문은 건너뛸 수 있고 최대 두 곳까지 프로�
   const built = buildUserProfile(answers);
   assert.deepEqual(built?.requiredPlaceIds, ["a", "b"]);
   assert.notEqual(built?.requiredPlaceIds, answers.requiredPlaceIds);
+});
+
+
+test("표시용 취향 적합도는 유명도·관광두레 가점과 독립적이고 정수 퍼센트이다", () => {
+  const place = fixture({ category: "nature", familyScore: 5, activityLevel: 2, restScore: 5 });
+  assert.equal(calculatePreferenceFit(scorePlace(profile, place)), 100);
+  const changed = scorePlace({ ...profile, popularityPreference: "hidden" }, { ...place, popularityScore: 1, isTourismDure: true });
+  assert.equal(calculatePreferenceFit(changed), 100);
+  assert.equal(calculatePreferenceFit(scorePlace({ ...profile, interests: ["culture"], activityLevel: 5 }, { ...place, familyScore: 1, restScore: 1 })), 5);
+  places.forEach(place => {
+    const fit = calculatePreferenceFit(scorePlace(profile, place));
+    assert.ok(Number.isInteger(fit) && fit >= 0 && fit <= 100);
+  });
 });

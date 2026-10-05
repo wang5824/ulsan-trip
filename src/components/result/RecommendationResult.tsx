@@ -44,9 +44,6 @@ export default function RecommendationResult() {
             <span className="inline-flex rounded-full bg-teal-50 px-4 py-2 text-xs font-semibold text-teal-800">{travelCopy.concept}</span>
             <p className="mt-3 text-base leading-8 text-slate-600 sm:text-lg">{travelCopy.introduction}</p>
           </div>
-          <p className="mt-6 rounded-2xl border border-amber-200/70 bg-amber-50/70 px-4 py-3 text-xs leading-6 text-amber-900">
-            울산 전체는 모든 지역을 후보로 포함하며, 하루에 모든 구·군을 방문한다는 뜻은 아닙니다. 음식점과 카페는 관광 일정 근처에서 추천하며, 가까운 후보가 없으면 생략합니다. 이동시간은 좌표 거리와 이동수단별 가정으로 추정하며 실시간 교통·배차·영업시간은 반영하지 않습니다. 출발지→첫 장소와 마지막 장소→귀가 이동은 제외합니다.
-          </p>
         </header>
 
         <section aria-labelledby="style-heading" className="my-8 rounded-3xl border border-teal-100 bg-teal-50/60 p-6 sm:my-10 sm:p-8">
@@ -74,7 +71,6 @@ export default function RecommendationResult() {
             <p className="mb-6 mt-3 text-sm leading-7 text-slate-500">
               {stops.length}곳 · 체류 {totalStayMinutes}분 + 이동 약 {totalTravelMinutes}분 = 총 약 {totalStayMinutes + totalTravelMinutes}분<br />
               {schedule.length > 0 ? `예상 종료 ${formatScheduleTime(schedule[schedule.length - 1].departureMinutes)} · 선택한 종료시간 안에 맞춘 일정입니다.` : "선택한 지역과 시간에 맞는 관광지가 없습니다. 지역을 넓히거나 여행 시간을 늘려보세요."}
-              <br />{profile.transport === "car" ? "자가용: 직선거리 × 1.35, 시속 30km, 구간별 주차 여유 8분." : profile.transport === "public-transit" ? "대중교통: 직선거리 × 1.5, 시속 20km, 구간별 접근·대기·환승 여유 20분. 600m 이하는 도보로 추정합니다." : "도보: 직선거리 × 1.2, 시속 4km."} 이동시간은 5분 단위로 올림합니다.
             </p>
             <CourseTimeline stops={schedule} />
           </section>

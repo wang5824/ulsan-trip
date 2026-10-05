@@ -40,6 +40,16 @@ export interface ScoredPlace {
   breakdown: ScoreBreakdown;
 }
 
+/** 화면용 취향 적합도. 유명도·관광두레는 제외하며 만족 확률을 뜻하지 않습니다. */
+export function calculatePreferenceFit(recommendation: ScoredPlace): number {
+  const { interest, companion, activity, rest } = recommendation.breakdown;
+  const details = [interest, companion, activity, rest];
+  const maximum = details.reduce((sum, item) => sum + item.weight, 0);
+  if (maximum <= 0) return 0;
+  const points = details.reduce((sum, item) => sum + item.points, 0);
+  return Math.round(Math.min(1, Math.max(0, points / maximum)) * 100);
+}
+
 function detail(match: number, weight: number, reason: string): ScoreDetail {
   return { match, weight, points: match * weight, reason };
 }
@@ -81,15 +91,32 @@ export function scorePlace(profile: UserProfile, place: Place): ScoredPlace {
   const activity = scoreSimilarity(profile.activityLevel, place.activityLevel);
   // 휴식이 드문 사용자도 휴식하기 좋은 장소에 불이익을 받지 않도록 필요도 × 적합도로 계산합니다.
   const rest = ((profile.restFrequency - 1) / 4) * ((place.restScore - 1) / 4);
+  const interestReasons: Partial<Record<Place["category"], string>> = {
+    nature: "자연을 즐기는 여행을 좋아하셔서, 주변 풍경을 감상하며 보내는 시간이 잘 맞을 것 같아요.",
+    sea: "자연과 바다에 관심이 있으셔서, 해안 풍경을 즐기는 시간이 만족스러울 것 같아요.",
+    culture: "역사와 문화에 관심이 있으셔서, 지역의 이야기를 알아가는 재미를 느끼기 좋아요.",
+    experience: "직접 참여하는 여행을 좋아하셔서, 새로운 경험을 해보는 시간이 잘 맞을 것 같아요.",
+  };
+  const companionPhrase = { solo: "혼자", family: "가족과", couple: "연인과", friends: "친구들과" }[profile.companion];
   const breakdown: ScoreBreakdown = {
     interest: detail(interest, RECOMMENDATION_WEIGHTS.interest,
-      interest === 1 ? "관심사 또는 선호 음식 유형이 잘 맞아요." : interest === 0 ? "관심사 또는 선호 음식 유형과 일치하지 않아요." : "관심사와 음식 선호의 일부 일치 또는 정보가 없는 항목의 중립 점수예요."),
+      interest >= 0.75
+        ? place.type === "restaurant" ? "맛집을 찾는 취향이나 선호하는 음식 종류와 잘 맞아, 식사 시간이 즐거울 것 같아요."
+          : interestReasons[place.category] ?? "관심 있는 여행 주제와 연결되는 장소라 즐겁게 둘러보기 좋아요."
+        : "관심사만으로 잘 맞는지 판단하기는 어려운 장소예요."),
     companion: detail(companion, RECOMMENDATION_WEIGHTS.companion,
-      profile.companion === "solo" ? "혼자 여행하는 적합도는 별도 정보가 없어 중립 점수를 적용했어요." : `동행 유형 적합도 ${Math.round(companion * 100)}%를 반영했어요.`),
+      profile.companion === "solo" ? "혼자 방문하는 여행에 대한 별도 정보는 없어요."
+        : companion >= 0.75 ? `${companionPhrase} 함께 시간을 보내기 좋은 편이라, 이번 동행과 즐거운 추억을 만들기 좋아요.`
+          : "동행과 잘 맞는지는 다른 여행 취향도 함께 살펴보면 좋아요."),
     activity: detail(activity, RECOMMENDATION_WEIGHTS.activity,
-      `선호 활동량 ${profile.activityLevel}점과 장소 활동량 ${place.activityLevel}점의 차이를 반영했어요.`),
+      activity >= 0.75
+        ? profile.activityLevel <= 2 ? "부담 없는 활동을 선호하셔서, 크게 무리하지 않고 편안하게 즐기기 좋아요."
+          : profile.activityLevel >= 4 ? "활동적인 여행을 좋아하셔서, 몸을 움직이며 보내는 시간이 잘 맞을 것 같아요."
+            : "적당히 활동하는 여행을 선호하셔서, 원하는 여행 속도에 맞춰 즐기기 좋아요."
+        : "평소 선호하는 활동량과 차이가 있어 컨디션에 맞춰 방문하면 좋아요."),
     rest: detail(rest, RECOMMENDATION_WEIGHTS.rest,
-      `휴식 빈도 ${profile.restFrequency}점과 장소의 휴식 적합도 ${place.restScore}점을 반영했어요.`),
+      rest >= 0.5 ? "여행 중 쉬어가는 시간을 원하셔서, 잠시 머물며 여유를 즐기기 좋은 장소예요."
+        : "휴식보다는 다른 여행 취향을 중심으로 고려한 장소예요."),
     popularity: detail(profile.popularityPreference === "any" ? 0.5
       : profile.popularityPreference === "famous" ? (place.popularityScore - 1) / 4 : (5 - place.popularityScore) / 4,
       RECOMMENDATION_WEIGHTS.popularity,
