@@ -68,7 +68,7 @@ test("빈 데이터, 후보 부족, 잘못된 시간, 정보 없는 관심사를
 test("유형별 데이터가 모두 보존되고 ID가 중복되지 않는다", () => {
   assert.equal(placeCatalog.attractions.length, 211);
   assert.equal(placeCatalog.restaurants.length, 238);
-  assert.equal(placeCatalog.cafes.length, 41);
+  assert.equal(placeCatalog.cafes.length, 82);
   assert.equal(new Set(places.map(p => p.id)).size, places.length);
   for (const id of ["daewangam-park", "taehwagang-national-garden", "ganjeolgot",
     "jangsaengpo-whale-village", "onggi-village", "ulsan-grand-park", "bangudae-petroglyphs",
