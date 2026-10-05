@@ -359,7 +359,7 @@ test("혼자 여행·관심사 무관·휴식 불필요는 맞는 활동의 적�
 
 test("음식점과 카페 적합도는 관광 관심사의 불일치로 감점하지 않는다", () => {
   const selected = { ...profile, companion: "solo" as const, interests: ["nature"] as UserProfile["interests"], restFrequency: 1 as const, activityLevel: 1 as const };
-  assert.equal(calculatePreferenceFit(scorePlace(selected, fixture({ type: "restaurant", category: "korean", activityLevel: 1 }))), 100);
+  assert.equal(calculatePreferenceFit(scorePlace(selected, fixture({ type: "restaurant", category: "korean", activityLevel: 1 }))), 90);
   assert.equal(calculatePreferenceFit(scorePlace(selected, fixture({ type: "cafe", category: "cafe", activityLevel: 1 }))), 100);
 });
 
@@ -369,4 +369,15 @@ test("다음 관광지는 조금 더 멀어도 취향에 잘 맞는 후보를 �
   const better = fixture({ id: "better", category: "nature", activityLevel: 2, longitude: anchor.longitude! + 0.02, recommendedDuration: 30 });
   const result = recommendPlaces({ ...profile, requiredPlaceIds: ["a"] }, catalogOf([anchor, nearPoor, better]));
   assert.deepEqual(result.slice(0, 2).map(place => place.id), ["a", "better"]);
+});
+
+
+test("음식점은 음식 선호 일치 또는 제한 없음이면 공통 초기 점수와 무관하게 높은 적합도이다", () => {
+  const food = fixture({ type: "restaurant", category: "korean", activityLevel: 1, familyScore: 4, coupleScore: 3, friendScore: 4, restScore: 3 });
+  const active = { ...profile, companion: "couple" as const, activityLevel: 5 as const, restFrequency: 5 as const };
+  assert.equal(calculatePreferenceFit(scorePlace(active, food)), 90);
+  assert.equal(calculatePreferenceFit(scorePlace({ ...active, preferredFood: [] }, food)), 85);
+  assert.equal(calculatePreferenceFit(scorePlace({ ...active, preferredFood: ["western"] }, food)), 0);
+  assert.equal(calculatePreferenceFit(scorePlace(active, { ...food, category: "other-food" })), 50);
+  assert.equal(calculatePreferenceFit(scorePlace({ ...active, preferredFood: ["vegetarian"] }, food)), 50);
 });

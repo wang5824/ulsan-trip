@@ -47,17 +47,16 @@ export function calculatePreferenceFit(recommendation: ScoredPlace): number {
 }
 
 function preferenceFit(profile: UserProfile, place: Place, breakdown: ScoreBreakdown): number {
+  if (place.type === "restaurant") {
+    // 식당 공통 초기 활동·동행·휴식 값은 음식 취향 적합도에 사용하지 않습니다.
+    if (profile.preferredFood.length === 0) return 85;
+    if (place.category === "other-food" || profile.preferredFood.every(food => food === "vegetarian")) return 50;
+    return profile.preferredFood.some(food => food === place.category) ? 90 : 0;
+  }
   const details = [breakdown.activity];
   if (profile.companion !== "solo") details.push(breakdown.companion);
   if (place.type === "attraction" && profile.interests.some(interest => ["nature", "sea", "culture", "experience"].includes(interest))) {
     details.push(breakdown.interest);
-  }
-  if (place.type === "restaurant") {
-    if (profile.preferredFood.length && place.category !== "other-food") {
-      details.push(detail(Number(profile.preferredFood.some(food => food === place.category)), RECOMMENDATION_WEIGHTS.interest, ""));
-    } else if (profile.interests.includes("food")) {
-      details.push(detail(1, RECOMMENDATION_WEIGHTS.interest, ""));
-    }
   }
   // 휴식 필요도는 중요도로 반영하고, 휴식이 적게 필요하다는 이유로 감점하지 않습니다.
   const restImportance = (profile.restFrequency - 1) / 4;
