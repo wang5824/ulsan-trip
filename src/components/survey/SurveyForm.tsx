@@ -24,6 +24,8 @@ export default function SurveyForm() {
   const draftProfile = buildUserProfile(answers);
   const requiredIssues = draftProfile ? getRequiredPlaceIssues(draftProfile, placeCatalog) : [];
   const canContinue = isQuestionAnswered(question.id, answers) && (!isLast || requiredIssues.length === 0);
+  const sectionLabel = ["companion", "region", "transport", "time"].includes(question.id)
+    ? "여행 기본 정보" : question.id === "requiredPlaces" ? "꼭 가고 싶은 곳" : "여행 취향";
   const progress = isPending ? 100 : Math.round((step / surveyQuestions.length) * 100);
   const invalidTime = question.id === "time" && answers.startTime && answers.endTime && !isQuestionAnswered("time", answers);
 
@@ -53,6 +55,7 @@ export default function SurveyForm() {
         </div>
 
         <form onSubmit={submit} className="rounded-3xl border border-teal-900/5 bg-white p-5 shadow-sm sm:p-9">
+          <p className="mb-3 text-xs font-semibold text-teal-700">{sectionLabel}</p>
           <h1 id="question-title" ref={headingRef} tabIndex={-1} className="text-2xl font-bold leading-snug tracking-tight outline-none sm:text-3xl">{question.title}</h1>
           <p id="question-help" className="mb-8 mt-4 text-sm leading-7 text-slate-500">{question.id === "time" ? "같은 날의 시작·종료 시간을 선택해주세요. 한국 시각 기준입니다." : question.id === "requiredPlaces" ? "선택 사항이에요. 원하는 장소가 없으면 그대로 다음으로 넘어가세요." : "가장 가까운 답변 하나를 선택해주세요."}</p>
           {question.id === "requiredPlaces" ? (
@@ -81,7 +84,8 @@ export default function SurveyForm() {
           )}
           {isLast && requiredIssues.length > 0 && <div role="alert" className="mt-5 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">
             <ul className="list-disc space-y-2 pl-4">{requiredIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>
-            <p className="mt-2">시간을 조정하거나 이전 단계에서 필수 장소를 변경해주세요.</p>
+            <p className="mt-2">여행 시간을 늘리거나 필수 장소를 조정해주세요.</p>
+            <button type="button" onClick={() => setStep(surveyQuestions.findIndex(question => question.id === "time"))} className="mt-2 min-h-10 rounded-lg border border-amber-300 px-3 font-semibold">여행 시간 수정</button>
             {answers.region !== "all" && <button type="button" onClick={() => setAnswers(current => ({ ...current, region: "all" }))} className="mt-2 min-h-10 rounded-lg border border-amber-300 px-3 font-semibold">여행 지역을 울산 전체로 변경</button>}
           </div>}
           <div className="mt-8 flex gap-3 border-t border-slate-100 pt-6">

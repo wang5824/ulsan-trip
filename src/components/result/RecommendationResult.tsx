@@ -9,7 +9,6 @@ import CourseTimeline from "@/src/components/result/CourseTimeline";
 import { createTravelCopy } from "@/src/lib/travel-copy";
 import { createSchedule, formatScheduleTime } from "@/src/lib/recommendation";
 import { DISTRICT_LABELS } from "@/src/types/travel";
-const popularityLabels = { famous: "유명한 대표 명소 선호", hidden: "덜 알려진 장소 선호", any: "유명도 제한 없음" };
 const companionLabels = { solo: "혼자", couple: "연인과", friends: "친구와", family: "가족과" };
 const transportLabels = { car: "자가용", "public-transit": "대중교통", walking: "도보" };
 const interestLabels = { nature: "자연", sea: "바다", culture: "문화", experience: "체험", food: "음식", photo: "사진" };
@@ -46,7 +45,7 @@ export default function RecommendationResult() {
             <p className="mt-3 text-base leading-8 text-slate-600 sm:text-lg">{travelCopy.introduction}</p>
           </div>
           <p className="mt-6 rounded-2xl border border-amber-200/70 bg-amber-50/70 px-4 py-3 text-xs leading-6 text-amber-900">
-            유명도는 방문객 통계가 아닌 초기 편집 점수(1~5)입니다. 울산 전체는 모든 지역을 후보로 포함하며, 하루에 모든 구·군을 방문한다는 뜻은 아닙니다. 음식점과 카페는 관광 일정 근처에서 추천하며, 가까운 후보가 없으면 생략합니다. 이동시간은 좌표 거리와 이동수단별 가정으로 추정하며 실시간 교통·배차·영업시간은 반영하지 않습니다. 출발지→첫 장소와 마지막 장소→귀가 이동은 제외합니다.
+            울산 전체는 모든 지역을 후보로 포함하며, 하루에 모든 구·군을 방문한다는 뜻은 아닙니다. 음식점과 카페는 관광 일정 근처에서 추천하며, 가까운 후보가 없으면 생략합니다. 이동시간은 좌표 거리와 이동수단별 가정으로 추정하며 실시간 교통·배차·영업시간은 반영하지 않습니다. 출발지→첫 장소와 마지막 장소→귀가 이동은 제외합니다.
           </p>
         </header>
 
@@ -60,7 +59,6 @@ export default function RecommendationResult() {
           <div className="mt-5 flex flex-wrap gap-2 text-xs sm:text-sm">
             {[
               profile.region === "all" ? "울산 전체" : DISTRICT_LABELS[profile.region],
-              popularityLabels[profile.popularityPreference],
               transportLabels[profile.transport],
               `${profile.startTime}–${profile.endTime}`,
               ...(profile.requiredPlaceIds ?? []).map(id => `필수 방문: ${mapPlaces.find(place => place.id === id)?.name ?? id}`),
