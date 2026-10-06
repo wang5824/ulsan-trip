@@ -1,5 +1,6 @@
 import { surveyQuestions, type SurveyAnswers, type QuestionId } from "../data/survey";
-import type { FoodPreference, Interest, Score, TimeOfDay, UserProfile } from "../types/travel";
+import type { FoodPreference, TimeOfDay, UserProfile } from "../types/travel";
+import type { TasteProfile } from "./type-test";
 
 function isTime(value: string | undefined): value is TimeOfDay {
   return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
@@ -19,33 +20,26 @@ export function isQuestionAnswered(id: QuestionId, answers: SurveyAnswers): bool
   ) ?? false;
 }
 
-function toScore(value: string | undefined): Score | null {
-  const score = Number(value);
-  return score === 1 || score === 2 || score === 3 || score === 4 || score === 5 ? score : null;
-}
-
-/** 기존 프로필은 관심도 수치 대신 목록을 사용하므로 4점 이상만 관심사로 변환합니다. */
-export function buildUserProfile(answers: SurveyAnswers): UserProfile | null {
+/** 2단계 설문 응답과 1단계 유형검사의 취향 값을 합쳐 추천용 프로필을 만듭니다. */
+export function buildUserProfile(answers: SurveyAnswers, taste: TasteProfile): UserProfile | null {
   if (!surveyQuestions.every(({ id }) => isQuestionAnswered(id, answers))) return null;
-  const { companion, transport, startTime, endTime, preferredFood, popularityPreference, region } = answers;
-  const activityLevel = toScore(answers.activityLevel);
-  const restFrequency = toScore(answers.restFrequency);
+  const { companion, transport, startTime, endTime, preferredFood, region } = answers;
   if ((companion !== "solo" && companion !== "couple" && companion !== "friends" && companion !== "family")
     || (transport !== "car" && transport !== "public-transit")
-    || !activityLevel || !restFrequency || !isTime(startTime) || !isTime(endTime)) return null;
-
-  if (popularityPreference !== "famous" && popularityPreference !== "hidden" && popularityPreference !== "any") return null;
+    || !isTime(startTime) || !isTime(endTime)) return null;
   if (region !== "all" && region !== "ulju" && region !== "buk" && region !== "dong" && region !== "jung" && region !== "nam") return null;
 
   const foods: FoodPreference[] = [];
   if (preferredFood === "korean" || preferredFood === "seafood" || preferredFood === "western" || preferredFood === "vegetarian") {
     foods.push(preferredFood);
   }
-  const interestKeys = ["nature", "food", "culture", "experience"] as const satisfies readonly Interest[];
   return {
     requiredPlaceIds: [...(answers.requiredPlaceIds ?? [])],
-    popularityPreference, region, companion, transport, activityLevel, restFrequency,
-    interests: interestKeys.filter((interest) => Number(answers[interest]) >= 4),
+    popularityPreference: taste.popularityPreference,
+    activityLevel: taste.activityLevel,
+    restFrequency: taste.restFrequency,
+    interests: [...taste.interests],
+    region, companion, transport,
     preferredFood: foods, startTime, endTime,
   };
 }
