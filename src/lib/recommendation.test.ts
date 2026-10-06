@@ -381,3 +381,19 @@ test("음식점은 음식 선호 일치 또는 제한 없음이면 공통 초기
   assert.equal(calculatePreferenceFit(scorePlace(active, { ...food, category: "other-food" })), 50);
   assert.equal(calculatePreferenceFit(scorePlace({ ...active, preferredFood: ["vegetarian"] }, food)), 50);
 });
+
+test("암각화 여행자 유형: 16개 코드가 모두 정의되고 설문 프로필로 계산된다", async () => {
+  const { PETROGLYPH_TYPES } = await import("../data/petroglyph-types");
+  const { getPetroglyphCode, getRelations, findPetroglyphType } = await import("./petroglyph-type");
+  const codes = new Set(PETROGLYPH_TYPES.map((type) => type.code));
+  assert.equal(codes.size, 16);
+  for (const a of "AS") for (const b of "NC") for (const c of "ET") for (const d of "FL") assert.ok(codes.has(a + b + c + d));
+  assert.equal(getPetroglyphCode(profile), "SNEF");
+  assert.equal(getPetroglyphCode({ ...profile, activityLevel: 5, interests: ["culture", "food"], popularityPreference: "hidden" }), "ACTL");
+  assert.equal(getPetroglyphCode({ ...profile, activityLevel: 3, restFrequency: 1, interests: [] }), "ANEF");
+  assert.equal(getPetroglyphCode({ ...profile, activityLevel: 3, restFrequency: 5, interests: ["nature", "culture"] }), "SNEF");
+  const { best, pace } = getRelations("ANEF");
+  assert.equal(best, "ANTF");
+  assert.equal(pace, "SNEF");
+  assert.ok(findPetroglyphType(best) && findPetroglyphType(pace));
+});
