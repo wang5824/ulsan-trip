@@ -63,7 +63,16 @@ type Minute = `${0 | 1 | 2 | 3 | 4 | 5}${Digit}`;
 /** 24시간제 HH:mm 형식(00:00~23:59). */
 export type TimeOfDay = `${Hour}:${Minute}`;
 
+/** 함께하는 동행의 이동·동반 조건입니다. 생략하면 조건이 없습니다. */
+export interface AccessNeeds {
+  /** 휠체어·유모차 이동 */
+  wheelchair: boolean;
+  /** 반려동물 동반 */
+  pets: boolean;
+}
+
 export interface UserProfile {
+  accessNeeds?: AccessNeeds;
   /** 반드시 방문할 장소 ID. 생략하거나 빈 배열이면 제한이 없습니다. 최대 2곳. */
   requiredPlaceIds?: string[];
   popularityPreference: PopularityPreference;

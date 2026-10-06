@@ -23,7 +23,7 @@ export function isQuestionAnswered(id: QuestionId, answers: SurveyAnswers): bool
 /** 2단계 설문 응답과 1단계 유형검사의 취향 값을 합쳐 추천용 프로필을 만듭니다. */
 export function buildUserProfile(answers: SurveyAnswers, taste: TasteProfile): UserProfile | null {
   if (!surveyQuestions.every(({ id }) => isQuestionAnswered(id, answers))) return null;
-  const { companion, transport, startTime, endTime, preferredFood, region } = answers;
+  const { companion, transport, startTime, endTime, preferredFood, region, access } = answers;
   if ((companion !== "solo" && companion !== "couple" && companion !== "friends" && companion !== "family")
     || (transport !== "car" && transport !== "public-transit")
     || !isTime(startTime) || !isTime(endTime)) return null;
@@ -33,7 +33,9 @@ export function buildUserProfile(answers: SurveyAnswers, taste: TasteProfile): U
   if (preferredFood === "korean" || preferredFood === "seafood" || preferredFood === "western" || preferredFood === "vegetarian") {
     foods.push(preferredFood);
   }
+  const accessNeeds = access === "none" ? undefined : { wheelchair: access === "wheelchair" || access === "both", pets: access === "pets" || access === "both" };
   return {
+    ...(accessNeeds ? { accessNeeds } : {}),
     requiredPlaceIds: [...(answers.requiredPlaceIds ?? [])],
     popularityPreference: taste.popularityPreference,
     activityLevel: taste.activityLevel,

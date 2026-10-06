@@ -4,6 +4,12 @@ export const surveyQuestions = [
     { value: "solo", label: "혼자" }, { value: "couple", label: "연인" },
     { value: "friends", label: "친구" }, { value: "family", label: "가족" },
   ] },
+  { id: "access", title: "함께하는 특별한 동행이 있나요?", help: "고르면 이동이 편하거나 동반 가능한 장소를 먼저 추천하고, 어려운 곳은 빼요.", options: [
+    { value: "none", label: "없어요" },
+    { value: "wheelchair", label: "휠체어·유모차", hint: "계단·산길이 적은 곳 우선" },
+    { value: "pets", label: "반려동물", hint: "동반 가능한 야외 위주" },
+    { value: "both", label: "둘 다", hint: "휠체어·유모차와 반려동물" },
+  ] },
   { id: "region", title: "울산의 어느 지역을 여행하고 싶으신가요?", help: "선택한 구·군 안에서만 장소를 추천해요.", options: [
     { value: "all", label: "울산 전체", hint: "지역 제한 없이 추천" },
     { value: "ulju", label: "울주군", hint: "간절곶·반구대·영남알프스" }, { value: "buk", label: "북구", hint: "강동 해변·주상절리" },

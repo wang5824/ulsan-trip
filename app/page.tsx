@@ -4,6 +4,7 @@ import PetroglyphGlyph from "@/src/components/petroglyph/PetroglyphGlyph";
 import { PETROGLYPH_TYPES } from "@/src/data/petroglyph-types";
 import { TYPE_TEST_QUESTIONS } from "@/src/data/type-test";
 import { surveyQuestions } from "@/src/data/survey";
+import BangudaeForecast from "@/src/components/home/BangudaeForecast";
 import { buttonOnDark, buttonPrimary, eyebrow, focusRing } from "@/src/components/ui";
 
 // 히어로의 '바위 면'에 흩어 놓을 그림 배치입니다. 위치는 % 단위입니다.
@@ -52,6 +53,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <BangudaeForecast />
 
       <section aria-labelledby="flow-heading" className="px-5 py-16 sm:px-8 sm:py-24">
         <div className="mx-auto max-w-6xl">

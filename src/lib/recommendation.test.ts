@@ -259,7 +259,7 @@ test("희망 지역은 관광지와 음식점 및 카페에 모두 적용하며 
 test("경로 설문 응답은 필수이며 유형검사 취향과 합쳐 프로필이 된다", () => {
   const taste = { popularityPreference: "famous" as const, activityLevel: 2 as const, restFrequency: 5 as const, interests: ["nature" as const, "food" as const] };
   const answers: SurveyAnswers = {
-    companion: "family", transport: "car", preferredFood: "any",
+    companion: "family", transport: "car", preferredFood: "any", access: "none",
     startTime: "09:00", endTime: "18:00",
   };
   assert.equal(buildUserProfile(answers, taste), null);
@@ -329,11 +329,12 @@ test("필수 장소 질문은 건너뛸 수 있고 최대 두 곳까지 프로�
   assert.equal(isQuestionAnswered("requiredPlaces", { requiredPlaceIds: ["a", "b"] }), true);
   assert.equal(isQuestionAnswered("requiredPlaces", { requiredPlaceIds: ["a", "b", "c"] }), false);
   const answers: SurveyAnswers = {
-    region: "all", companion: "family", transport: "car",
+    region: "all", companion: "family", transport: "car", access: "pets",
     preferredFood: "any", startTime: "09:00", endTime: "18:00", requiredPlaceIds: ["a", "b"],
   };
   const built = buildUserProfile(answers, profile);
   assert.deepEqual(built?.requiredPlaceIds, ["a", "b"]);
+  assert.deepEqual(built?.accessNeeds, { wheelchair: false, pets: true });
   assert.notEqual(built?.requiredPlaceIds, answers.requiredPlaceIds);
 });
 
@@ -430,4 +431,57 @@ test("유형검사: 12문항이 축마다 3개씩이고 응답으로 유형과 �
   // 빠진 응답이나 다른 축 글자는 거부한다.
   assert.equal(scoreTypeTest(mixed.slice(0, 11)), null);
   assert.equal(scoreTypeTest(mixed.map((value, i) => (i === 0 ? "N" : value))), null);
+});
+
+test("휠체어·반려동물 조건은 어려운 관광지를 빼고 확인된 곳을 앞세운다", async () => {
+  const { wheelchairVerdict, petVerdict } = await import("./access");
+  const trail = fixture({ id: "trail", activityLevel: 5, indoor: false });
+  const museum = fixture({ id: "museum", activityLevel: 1, indoor: true });
+  const garden = { ...placeCatalog.attractions.find(p => p.id === "taehwagang-national-garden")! };
+  assert.equal(wheelchairVerdict(trail), "no");
+  assert.equal(petVerdict(museum), "no");
+  assert.equal(wheelchairVerdict(garden), "yes");
+  const wheelchair = { ...profile, accessNeeds: { wheelchair: true, pets: false } };
+  const ranked = rankPlaces(wheelchair, [trail, museum, garden]).map(item => item.place.id);
+  assert.ok(!ranked.includes("trail"));
+  assert.ok(ranked.includes("museum"));
+  const pets = { ...profile, accessNeeds: { wheelchair: false, pets: true } };
+  assert.ok(!rankPlaces(pets, [trail, museum]).some(item => item.place.id === "museum"));
+  // 조건이 없으면 아무것도 빼지 않는다.
+  assert.equal(rankPlaces(profile, [trail, museum, garden]).length, 3);
+  // 실제 데이터에서도 조건을 고르면 결과에 '어려움' 관광지가 없다.
+  for (const region of ["all", "ulju", "dong", "jung"] as const) {
+    const result = recommendPlaces({ ...profile, region, accessNeeds: { wheelchair: true, pets: true } }, placeCatalog);
+    assert.ok(result.filter(p => p.type === "attraction").every(p => wheelchairVerdict(p) !== "no" && petVerdict(p) !== "no"), region);
+  }
+});
+
+test("반구대 관람 지수: 햇빛 드는 계절 맑은 오후가 가장 높고 비·밤·그늘 계절은 낮다", async () => {
+  const { scoreHour, floodRisk } = await import("./bangudae-forecast");
+  const base = { precipitation: 0, precipitationProbability: 0, cloudCover: 0, visibility: 30000, directRadiation: 600, isDay: true };
+  const juneAfternoon = scoreHour({ ...base, time: "2026-06-15T15:00" });
+  const juneMorning = scoreHour({ ...base, time: "2026-06-15T09:00" });
+  const octoberAfternoon = scoreHour({ ...base, time: "2026-10-15T15:00" });
+  const rainy = scoreHour({ ...base, time: "2026-06-15T15:00", precipitation: 3 });
+  const night = scoreHour({ ...base, time: "2026-06-15T21:00", isDay: false });
+  assert.equal(juneAfternoon.level, "good");
+  assert.ok(juneAfternoon.score > juneMorning.score);
+  assert.ok(juneAfternoon.score > octoberAfternoon.score);
+  assert.notEqual(octoberAfternoon.level, "good");
+  assert.equal(rainy.level, "poor");
+  assert.equal(night.score, 0);
+  assert.equal(floodRisk(20, 10), "low");
+  assert.equal(floodRisk(200, 40), "possible");
+  assert.equal(floodRisk(120, 160), "high");
+});
+
+test("캐릭터 한마디는 데이터에 맞는 문장을 고르고 항상 한 줄 이상 말한다", async () => {
+  const { characterQuips } = await import("./character-voice");
+  const garden = placeCatalog.attractions.find(p => p.id === "taehwagang-national-garden")!;
+  const { getPlaceStory } = await import("../data/place-stories");
+  const evening = characterQuips({ code: "SNEF", profile, place: garden, story: getPlaceStory(garden.id), arrivalMinutes: 18 * 60, travelMinutes: 0, isFirst: false, isLast: true });
+  assert.match(evening.lines[0], /해 질 무렵/);
+  assert.equal(evening.cry, "쉬엄쉬엄 가자.");
+  const plain = characterQuips({ code: "ACTL", profile, place: fixture({ id: "plain", indoor: false, activityLevel: 2 }), arrivalMinutes: 600, travelMinutes: 25, isFirst: false, isLast: false });
+  assert.ok(plain.lines.length >= 1 && plain.lines.length <= 2);
 });
