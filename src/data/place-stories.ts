@@ -4,6 +4,7 @@
  * - visitors: 공식 통계·지자체 집계를 인용한 보도 기준. 집계 기준이 장소마다 달라 label에 적었습니다.
  * - barrierFree / pets: yes(가능) · partial(일부) · no(어려움). 방문 전 현장 확인이 필요합니다.
  * - wikiTitles: 사진을 가져올 위키백과 문서 제목("ko:제목" 또는 "en:제목"). 자유 이용 사진만 표시합니다.
+ * - photo: 이용 허락이 표시된 사진. 공공누리 제4유형은 비영리·변경금지 조건이라 상업적으로 쓰게 되면 빼야 합니다.
  */
 export type AccessStatus = "yes" | "partial" | "no";
 
@@ -15,6 +16,11 @@ export interface PlaceStory {
   visitors?: { count: number; year: number; label: string; source: string };
   trend: string[];
   wikiTitles?: string[];
+  /**
+   * 자유 이용 허락이 표시된 사진(공유마당 CC BY·기증저작물, 공공누리 등).
+   * noAlter가 true면 변경금지 조건이라 자르지 않고 원본 비율 그대로 보여줍니다.
+   */
+  photo?: { url: string; page: string; credit: string; license: string; noAlter: boolean };
 }
 
 export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
@@ -56,6 +62,18 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
         "url": "https://www.welfarehello.com/community/hometownNews/55c47960-375a-428c-9e54-2bce6784d887",
         "source": "웰로 동네소식(중구 SNS기자)",
         "date": null
+      },
+      {
+        "title": "울산 조용한 벚꽃 명소 🌸 학성공원, 사람 없는 데이트 코스 추천",
+        "url": "https://hidori.kr/entry/%EB%B2%9A%EA%BD%83-%EB%AA%85%EC%86%8C-%ED%95%99%EC%84%B1%EA%B3%B5%EC%9B%90",
+        "source": "티스토리(hidori.kr)",
+        "date": "2026-03"
+      },
+      {
+        "title": "학성공원을 품은 도시, 울산의 봄",
+        "url": "https://lightone.kr/%ED%95%99%EC%84%B1%EA%B3%B5%EC%9B%90%EC%9D%84-%ED%92%88%EC%9D%80-%EB%8F%84%EC%8B%9C-%EC%9A%B8%EC%82%B0%EC%9D%98-%EB%B4%84/",
+        "source": "라이트원(개인 여행블로그)",
+        "date": "2024-04"
       }
     ],
     "trend": [
@@ -70,7 +88,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "ko:울산왜성",
       "ko:학성공원",
       "en:Ulsan Castle"
-    ]
+    ],
+    "barrierFree": {
+      "status": "partial",
+      "note": "정문·성곽 상부는 계단, 둘레 산책로는 완만한 오르막",
+      "source": "https://www.welfarehello.com/community/hometownNews/55c47960-375a-428c-9e54-2bce6784d887"
+    }
   },
   "attraction-c8efdfb247ee": {
     "blogs": [
@@ -130,6 +153,18 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
         "url": "https://kr.trip.com/moments/detail/ulsan-21421-119167847/",
         "source": "트립닷컴 모먼트",
         "date": "2023-04"
+      },
+      {
+        "title": "울산 북구 숨은 명소 화동못 수변공원",
+        "url": "https://www.welfarehello.com/community/hometownNews/%EC%9A%B8%EC%82%B0-%EB%B6%81%EA%B5%AC-%EC%88%A8%EC%9D%80-%EB%AA%85%EC%86%8C-%ED%99%94%EB%8F%99%EB%AA%BB-%EC%88%98%EB%B3%80%EA%B3%B5%EC%9B%90--89cc6cff-d862-492c-b0fa-c1f4dd387c5a",
+        "source": "웰로 동네소식",
+        "date": null
+      },
+      {
+        "title": "생태습지와 물레방아를 보며 산책할 수 있는 화동못수변공원",
+        "url": "https://www.welfarehello.com/community/hometownNews/%EC%83%9D%ED%83%9C%EC%8A%B5%EC%A7%80%EC%99%80-%EB%AC%BC%EB%A0%88%EB%B0%A9%EC%95%84%EB%A5%BC-%EB%B3%B4%EB%A9%B0-%EC%82%B0%EC%B1%85%ED%95%A0-%EC%88%98-%EC%9E%88%EB%8A%94-%ED%99%94%EB%8F%99%EB%AA%BB%EC%88%98%EB%B3%80%EA%B3%B5%EC%9B%90--c9a51465-8186-4f26-a6af-fedd0a31afa6",
+        "source": "웰로 동네소식",
+        "date": null
       }
     ],
     "trend": [
@@ -170,8 +205,25 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     }
   },
   "attraction-a783f1ec3d3c": {
-    "blogs": [],
-    "trend": []
+    "blogs": [
+      {
+        "title": "울산을 한눈에 숨은 명소 염포전망대",
+        "url": "https://www.welfarehello.com/community/hometownNews/6c361ad9-a897-4cce-8f2a-c2f681154ce3",
+        "source": "웰로 동네소식",
+        "date": null
+      },
+      {
+        "title": "울산 해돋이 명소 <염포전망대> (입장료, 운영시간, 주차장, 맛집, 카페)",
+        "url": "https://c.good-k.co.kr/entry/%EC%9A%B8%EC%82%B0-%ED%95%B4%EB%8F%8B%EC%9D%B4-%EB%AA%85%EC%86%8C-%EC%97%BC%ED%8F%AC%EC%A0%84%EB%A7%9D%EB%8C%80-%EC%9E%85%EC%9E%A5%EB%A3%8C-%EC%9A%B4%EC%98%81%EC%8B%9C%EA%B0%84-%EC%A3%BC%EC%B0%A8%EC%9E%A5-%EB%A7%9B%EC%A7%91-%EC%B9%B4%ED%8E%98",
+        "source": "티스토리(c.good-k.co.kr)",
+        "date": null
+      }
+    ],
+    "trend": [],
+    "tip": {
+      "text": "2022년 11월 문을 연 360도 전망대예요. 차로 오르는 길은 좁은 1차로라 염포산 등산로(약 1시간)로 걸어가는 것도 추천해요",
+      "source": "https://www.welfarehello.com/community/hometownNews/6c361ad9-a897-4cce-8f2a-c2f681154ce3"
+    }
   },
   "attraction-a50210ca12ad": {
     "blogs": [],
@@ -201,6 +253,18 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
         "url": "https://www.welfarehello.com/community/hometownNews/d9eed6cd-6cd2-4556-b3bf-ee6a7c536f6f",
         "source": "웰로 동네소식",
         "date": null
+      },
+      {
+        "title": "울산대교 전망대 방문 후기, 멋진 풍경을 한눈에!",
+        "url": "https://www.welfarehello.com/community/hometownNews/bc12ed46-f8cc-4b23-afa9-c46514c57e85",
+        "source": "웰로 동네소식",
+        "date": null
+      },
+      {
+        "title": "울산대교와 바다를 한눈에, 뷰 맛집 울산대교 전망대",
+        "url": "https://www.welfarehello.com/community/hometownNews/8721d76a-3369-4ddf-b0a4-25222296220b",
+        "source": "웰로 동네소식",
+        "date": null
       }
     ],
     "trend": [
@@ -227,6 +291,18 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       {
         "title": "울산 북구 연암동, 숨은 힐링 스팟 '연암정원'",
         "url": "https://www.welfarehello.com/community/hometownNews/293f01aa-5278-4bdf-a210-a66a25dc1755",
+        "source": "웰로 동네소식",
+        "date": null
+      },
+      {
+        "title": "울산 연암정원 후기｜연꽃연못과 통나무 외나무다리 포토존이 예쁜 울산 산책 명소",
+        "url": "https://southkrtraver.com/205",
+        "source": "티스토리(southkrtraver.com)",
+        "date": "2025-06"
+      },
+      {
+        "title": "울산 포토스팟 여기였어? 연암정원에서 만난 인생샷 장소 공개",
+        "url": "https://www.welfarehello.com/community/hometownNews/455c9053-973a-486e-a3c3-8b3d30a2f4bb",
         "source": "웰로 동네소식",
         "date": null
       }
@@ -310,6 +386,18 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
         "url": "https://www.welfarehello.com/community/hometownNews/34640829-4a96-4155-85da-16fb7ab7118a",
         "source": "웰로(울산시 블로그 기자)",
         "date": null
+      },
+      {
+        "title": "천혜의 철새 도래지, 떼까마귀 군무가 춤추는 울산 (2023 삼호 버드페스티벌)",
+        "url": "https://lightone.kr/%EC%B2%9C%ED%98%9C%EC%9D%98-%EC%B2%A0%EC%83%88-%EB%8F%84%EB%9E%98%EC%A7%80-%EB%96%BC%EA%B9%8C%EB%A7%88%EA%B7%80-%EA%B5%B0%EB%AC%B4%EA%B0%80-%EC%B6%A4%EC%B6%94%EB%8A%94-%EC%9A%B8%EC%82%B0-2023/",
+        "source": "개인 블로그(히도리 라이트원)",
+        "date": "2023-11"
+      },
+      {
+        "title": "[블로그 기자] 울산 남구 실내 가볼 만한 철새홍보관 VR 시간",
+        "url": "https://www.welfarehello.com/community/hometownNews/62cb27b0-1a08-477d-a906-59b6a9be18e5",
+        "source": "웰로(울산시 블로그 기자)",
+        "date": null
       }
     ],
     "trend": [
@@ -321,7 +409,14 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     }
   },
   "jangsaengpo-whale-village": {
-    "blogs": [],
+    "blogs": [
+      {
+        "title": "[블로그 기자] 장생포 옛 모습을 그대로 간직한 고래문화마을",
+        "url": "https://www.welfarehello.com/community/hometownNews/e8418577-78c8-4f95-b840-f07baa29428c",
+        "source": "웰로(울산시 블로그 기자)",
+        "date": null
+      }
+    ],
     "trend": [
       "역사 탐방",
       "아이와 함께",
@@ -346,7 +441,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "ko:장생포 고래문화마을",
       "ko:장생포고래문화마을",
       "ko:장생포 고래문화특구"
-    ]
+    ],
+    "pets": {
+      "status": "partial",
+      "note": "고래문화마을 안은 반려동물 출입 불가, 인접 수국정원은 리드줄(1.5m 이내)·배변봉투 지참 시 동반 가능",
+      "source": "https://www.ban-life.com/store/view?type=s&id=23395"
+    }
   },
   "attraction-e029c99e4bef": {
     "blogs": [
@@ -401,6 +501,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
         "url": "https://www.welfarehello.com/community/hometownNews/1c98d802-5d46-4bc3-aa6e-2a72a44c62b3",
         "source": "웰로(울산시 블로그 기자)",
         "date": null
+      },
+      {
+        "title": "울산 북구 가볼만한 곳 송정 박상진 호수공원 산책",
+        "url": "https://www.welfarehello.com/community/hometownNews/a3aa3338-9344-4007-85d7-7f0da98cc5c3",
+        "source": "웰로(울산시 블로그 기자)",
+        "date": "2024-02"
       }
     ],
     "trend": [
@@ -417,10 +523,22 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "status": "yes",
       "note": "3.6km 산책로 전 구간 휠체어·유모차 이동 가능, 무료 주차",
       "source": "https://www.telltrip.com/domestic-travel/ulsan-park-sangjin-lake-park-barefoot-trail/"
+    },
+    "pets": {
+      "status": "yes",
+      "note": "반려견과 산책하는 이용객이 많은 호수 산책로(목줄 착용)",
+      "source": "https://www.welfarehello.com/community/hometownNews/a3aa3338-9344-4007-85d7-7f0da98cc5c3"
     }
   },
   "attraction-72dbcf4e8e8a": {
-    "blogs": [],
+    "blogs": [
+      {
+        "title": "울산 남구 가을 단풍&억새 명소 모아보기",
+        "url": "https://www.welfarehello.com/community/hometownNews/8ca194e4-f839-48b2-9f7f-7894cf3f0c89",
+        "source": "웰로(울산시 블로그 기자)",
+        "date": null
+      }
+    ],
     "trend": [
       "가을 단풍",
       "무료"
@@ -483,6 +601,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
         "url": "https://www.welfarehello.com/community/hometownNews/6465bfc7-ce90-4564-b40e-82da59ba228b",
         "source": "웰로(울산시 블로그 기자)",
         "date": "2023-11"
+      },
+      {
+        "title": "[블로그 기자] 한가로운 산책의 즐거움과 함께 한 솔마루길 2구간",
+        "url": "https://www.welfarehello.com/community/hometownNews/c120ec81-8691-4f3d-83ef-9fad0dd13538",
+        "source": "웰로(울산시 블로그 기자)",
+        "date": null
       }
     ],
     "trend": [
@@ -497,6 +621,11 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "status": "no",
       "note": "솔숲 능선 등산로, 남산 구간 초입 급경사",
       "source": "https://www.welfarehello.com/community/hometownNews/6465bfc7-ce90-4564-b40e-82da59ba228b"
+    },
+    "pets": {
+      "status": "yes",
+      "note": "반려견 산책 가능, 목줄 착용·배설물 수거 필수",
+      "source": "https://www.welfarehello.com/community/hometownNews/c120ec81-8691-4f3d-83ef-9fad0dd13538"
     }
   },
   "attraction-2c479a6beabb": {
@@ -551,7 +680,14 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     }
   },
   "attraction-9a0c06b7f229": {
-    "blogs": [],
+    "blogs": [
+      {
+        "title": "신불산 가는 길 ㅡ간월재",
+        "url": "https://brunch.co.kr/@yjwon12/138",
+        "source": "브런치",
+        "date": "2023-01"
+      }
+    ],
     "trend": [
       "트레킹",
       "무료"
@@ -568,7 +704,14 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     "wikiTitles": [
       "ko:신불산",
       "en:Sinbulsan"
-    ]
+    ],
+    "photo": {
+      "url": "https://cdn.visitkorea.or.kr/img/call?cmd=VIEW&id=263a9b3c-1308-40f5-b2a6-82b9a444adca",
+      "page": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=5dd6d062-6c2f-4ccb-920d-7fe58fc0f895",
+      "credit": "한국관광공사",
+      "license": "공공누리 제4유형 (출처표시-상업용금지-변경금지)",
+      "noAlter": true
+    }
   },
   "attraction-26567fa9db6e": {
     "blogs": [
@@ -608,6 +751,11 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     "tip": {
       "text": "태화저수지 옆 쇄석 사이트 약 40면, 전기·온수·샤워장 완비에 척과천 야외물놀이장이 가까움",
       "source": "https://www.ktriptips.com/kor/leisure/2730148"
+    },
+    "pets": {
+      "status": "no",
+      "note": "고캠핑 등록정보상 반려동물 출입 불가",
+      "source": "https://www.gocamping.or.kr/bsite/camp/info/read.do?c_no=3145&viewType=read01"
     }
   },
   "attraction-945837bdd2d3": {
@@ -621,7 +769,14 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     }
   },
   "attraction-1bd9bd605a9f": {
-    "blogs": [],
+    "blogs": [
+      {
+        "title": "울산 새로운 핫플 성안동 달빛 야경 누리길 – 울산 가볼만한곳",
+        "url": "https://lightone.kr/%EC%9A%B8%EC%82%B0-%EC%83%88%EB%A1%9C%EC%9A%B4-%ED%95%AB%ED%94%8C-%EC%84%B1%EC%95%88%EB%8F%99-%EB%8B%AC%EB%B9%9B-%EC%95%BC%EA%B2%BD-%EB%88%84%EB%A6%AC%EA%B8%B8-%EC%9A%B8%EC%82%B0-%EA%B0%80%EB%B3%BC/",
+        "source": "개인 블로그(라이트원)",
+        "date": "2023-11"
+      }
+    ],
     "trend": [
       "야경",
       "인생샷",
@@ -641,6 +796,11 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     "tip": {
       "text": "쇄석 사이트 12면뿐인 아담한 숲속 캠핑장, 숲해설·유아숲 체험 프로그램 운영",
       "source": "https://www.ktriptips.com/kor/leisure/2741542"
+    },
+    "pets": {
+      "status": "no",
+      "note": "고캠핑 등록정보상 반려동물 출입 불가",
+      "source": "https://www.gocamping.or.kr/bsite/camp/info/read.do?c_no=7043&viewType=read01"
     }
   },
   "attraction-47254af5ba81": {
@@ -672,6 +832,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
         "url": "https://brunch.co.kr/@hitchwill/9248",
         "source": "브런치",
         "date": "2025-07"
+      },
+      {
+        "title": "울산 주전어촌체험마을, 아이랑 바다 체험하기 딱 좋은 곳!",
+        "url": "https://lightone.kr/%EC%9A%B8%EC%82%B0-%EC%A3%BC%EC%A0%84%EC%96%B4%EC%B4%8C%EC%B2%B4%ED%97%98%EB%A7%88%EC%9D%84/",
+        "source": "개인 블로그(라이트원)",
+        "date": "2025-06"
       }
     ],
     "trend": [
@@ -681,10 +847,24 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     "tip": {
       "text": "육지에서 유일하게 해녀체험이 가능한 곳으로 소개되며, 직접 캔 해산물로 '해녀 밥상'을 맛볼 수 있음",
       "source": "https://m.dailian.co.kr/news/view/1128955"
+    },
+    "photo": {
+      "url": "https://cdn.visitkorea.or.kr/img/call?cmd=VIEW&id=80d08eda-de89-425d-94f1-c591a827f535",
+      "page": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=51a1a924-b698-4928-b077-18bb9e2dca49",
+      "credit": "한국관광공사 (여행작가 구완회)",
+      "license": "공공누리 제4유형 (출처표시-상업용금지-변경금지)",
+      "noAlter": true
     }
   },
   "onggi-village": {
-    "blogs": [],
+    "blogs": [
+      {
+        "title": "2024 울산옹기축제 소개: 웰컴 투 옹기마을",
+        "url": "https://lightone.kr/2024-%EC%9A%B8%EC%82%B0%EC%98%B9%EA%B8%B0%EC%B6%95%EC%A0%9C-%EC%86%8C%EA%B0%9C-%EC%9B%B0%EC%BB%B4-%ED%88%AC-%EC%98%B9%EA%B8%B0%EB%A7%88%EC%9D%84/",
+        "source": "개인 블로그(라이트원)",
+        "date": "2024-05"
+      }
+    ],
     "trend": [
       "역사 탐방",
       "아이와 함께",
@@ -698,7 +878,19 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "ko:외고산 옹기마을",
       "ko:외고산옹기마을",
       "en:Oegosan Onggi Village"
-    ]
+    ],
+    "barrierFree": {
+      "status": "yes",
+      "note": "장애인 주차장·장애인 화장실, 주출입구 턱 없음, 휠체어 대여, 점자안내판",
+      "source": "https://access.visitkorea.or.kr/ms/detail.do?cotId=db697a4c-a21e-4802-9ba4-12ed14b6298a"
+    },
+    "photo": {
+      "url": "https://cdn.visitkorea.or.kr/img/call?cmd=VIEW&id=daae64fb-0663-4673-be11-5d4d896bb507",
+      "page": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=16a55bf1-56aa-4249-a67d-c66c69830756",
+      "credit": "한국관광공사 (글·사진 서영진 여행작가)",
+      "license": "공공누리 제4유형 (출처표시-상업용금지-변경금지)",
+      "noAlter": true
+    }
   },
   "attraction-f537690b569f": {
     "blogs": [],
@@ -727,6 +919,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
         "url": "https://blog.naver.com/snowday83/223385612149",
         "source": "네이버 블로그",
         "date": null
+      },
+      {
+        "title": "슬도 팜파스·댑싸리·등대 포토존 완벽 공략 (주차/위치/가볼만한곳)",
+        "url": "https://lightone.kr/%EC%8A%AC%EB%8F%84-%ED%8C%9C%ED%8C%8C%EC%8A%A4-%EB%8C%91%EC%8B%B8%EB%A6%AC/",
+        "source": "개인 블로그(라이트원)",
+        "date": "2025-09"
       }
     ],
     "trend": [
@@ -746,7 +944,14 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     },
     "wikiTitles": [
       "ko:슬도"
-    ]
+    ],
+    "photo": {
+      "url": "https://cdn.visitkorea.or.kr/img/call?cmd=VIEW&id=84e2824e-dbe8-4276-a279-f3e3f69df4a2",
+      "page": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=79bfe44d-66f7-4ece-b153-063cc1a24747",
+      "credit": "한국관광공사",
+      "license": "공공누리 제4유형 (출처표시-상업용금지-변경금지)",
+      "noAlter": true
+    }
   },
   "attraction-29c60b06fe80": {
     "blogs": [],
@@ -761,7 +966,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     },
     "wikiTitles": [
       "ko:선암호수공원"
-    ]
+    ],
+    "barrierFree": {
+      "status": "yes",
+      "note": "장애인전용주차장, 장애인화장실 3곳, 휠체어·유모차 무료 대여(신분증 지참)",
+      "source": "https://access.visitkorea.or.kr/ms/detail.do?cotId=c8e5cadb-402a-47e0-bb7f-41a91cb3bba7"
+    }
   },
   "attraction-d8d83dfadf19": {
     "blogs": [],
@@ -769,6 +979,16 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     "tip": {
       "text": "대운산(742m)은 원효대사의 마지막 수행처로 알려진 산으로, 치유의 숲은 그 자락에 있어요",
       "source": "https://www.ktriptips.com/kor/tourspot/128214"
+    },
+    "barrierFree": {
+      "status": "yes",
+      "note": "장애인 전용 주차 1면, 경사로 출입구, 장애인 화장실, 안내센터 휠체어 무료 대여(3대)",
+      "source": "https://access.visitkorea.or.kr/ms/detail.do?cotId=d43a66bc-d06d-4147-9787-2d52f130d1db"
+    },
+    "pets": {
+      "status": "no",
+      "note": "장애인 보조견 외 반려동물 동반 제한",
+      "source": "https://www.telltrip.com/domestic-travel/ulsan-national-daunsan-healing-forest-reservations/"
     }
   },
   "taehwagang-national-garden": {
@@ -776,6 +996,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       {
         "title": "4km 대나무 터널, 울산 십리대숲의 청량함",
         "url": "https://brunch.co.kr/@qrssa/5274",
+        "source": "브런치",
+        "date": "2026-06"
+      },
+      {
+        "title": "울산 1박 2일 여행",
+        "url": "https://brunch.co.kr/@cutem4/11",
         "source": "브런치",
         "date": "2026-06"
       }
@@ -811,7 +1037,14 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "ko:태화강 국가정원",
       "ko:태화강국가정원",
       "en:Taehwagang National Garden"
-    ]
+    ],
+    "photo": {
+      "url": "https://gongu.copyright.or.kr/gongu/wrt/cmmn/wrtFileImageView.do?wrtSn=13048987&filePath=L2Rpc2sxL25ld2RhdGEvMjAxNy85OC9DTFM2L1dSVF9UUkVBU1VSRV9IVU5UXzIwMTcwOTExXzEyNQ==&thumbAt=Y&thumbSe=b_tbumb&wrtTy=10006",
+      "page": "https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=13048987&menuNo=200023",
+      "credit": "공유마당 / 조상근 (태화강 십리대밭교 반영)",
+      "license": "CC BY 4.0",
+      "noAlter": false
+    }
   },
   "attraction-b67e2eda56d3": {
     "blogs": [],
@@ -852,10 +1085,29 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "ko:울주 대곡리 반구대 암각화",
       "ko:반구대 암각화",
       "en:Bangudae Petroglyphs"
-    ]
+    ],
+    "barrierFree": {
+      "status": "partial",
+      "note": "인근 울산암각화박물관에 장애인 주차·화장실·엘리베이터, 휠체어 4대 대여. 박물관 안내상 암각화 관찰데크까지 휠체어 접근 가능",
+      "source": "https://access.visitkorea.or.kr/ms/detail.do?cotId=c950c64e-821e-4946-ac69-8bb27bdb98cf"
+    },
+    "photo": {
+      "url": "https://gongu.copyright.or.kr/gongu/wrt/cmmn/wrtFileImageView.do?wrtSn=13304440&filePath=L2Rpc2sxL25ld2RhdGEvMjAyMi85OC9DTFMxMDAwNi9hZTM2Y2IxMy03MjQzLTRlMzYtOWQxZC1iODk2MTRjZmVmNTg=&thumbAt=Y&thumbSe=b_tbumb&wrtTy=10006",
+      "page": "https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=13304440&menuNo=200023",
+      "credit": "공유마당 / 강형원",
+      "license": "기증저작물 자유이용 (공유마당)",
+      "noAlter": false
+    }
   },
   "ganjeolgot": {
-    "blogs": [],
+    "blogs": [
+      {
+        "title": "울산 1박 2일 여행",
+        "url": "https://brunch.co.kr/@cutem4/11",
+        "source": "브런치",
+        "date": "2026-06"
+      }
+    ],
     "trend": [
       "일출",
       "바다 뷰",
@@ -880,10 +1132,35 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     "wikiTitles": [
       "ko:간절곶",
       "en:Ganjeolgot"
-    ]
+    ],
+    "barrierFree": {
+      "status": "partial",
+      "note": "장애인 화장실은 있으나 일부 길이 험해 유모차·휠체어 이동 주의",
+      "source": "https://mom-mom.net/travel/places/6510d5e57b6f8db33b8dfbb6"
+    },
+    "photo": {
+      "url": "https://gongu.copyright.or.kr/gongu/wrt/cmmn/wrtFileImageView.do?wrtSn=13333632&filePath=L2Rpc2sxL25ld2RhdGEvMjAyMy8yMS9DTFMxMDAwNi9jMGQwN2YzYy0wNWIyLTRkMjEtYTQ2Ny1kODBmNzI4OTUzM2I=&thumbAt=Y&thumbSe=b_tbumb&wrtTy=10006",
+      "page": "https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=13333632&menuNo=200023",
+      "credit": "공유마당 / 여행작가이동근",
+      "license": "CC BY 4.0",
+      "noAlter": false
+    }
   },
   "daewangam-park": {
-    "blogs": [],
+    "blogs": [
+      {
+        "title": "울산 1박 2일 여행",
+        "url": "https://brunch.co.kr/@cutem4/11",
+        "source": "브런치",
+        "date": "2026-06"
+      },
+      {
+        "title": "울산 애견동반 여행 강아지와 가볼만한 곳 TOP 3",
+        "url": "https://kkamiiii.com/entry/%EC%9A%B8%EC%82%B0-%EC%95%A0%EA%B2%AC%EB%8F%99%EB%B0%98%EC%97%AC%ED%96%89-%EA%B0%95%EC%95%84%EC%A7%80%EC%99%80-%EA%B0%80%EB%B3%BC%EB%A7%8C%ED%95%9C-%EA%B3%B3-TOP-3",
+        "source": "티스토리(세상에나)",
+        "date": "2022-11"
+      }
+    ],
     "trend": [
       "일출",
       "바다 뷰",
@@ -908,7 +1185,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     "wikiTitles": [
       "ko:대왕암공원",
       "en:Daewangam Park"
-    ]
+    ],
+    "pets": {
+      "status": "partial",
+      "note": "공원 산책로는 반려견 동반 가능, 출렁다리는 반려견 출입 불가",
+      "source": "https://kkamiiii.com/entry/%EC%9A%B8%EC%82%B0-%EC%95%A0%EA%B2%AC%EB%8F%99%EB%B0%98%EC%97%AC%ED%96%89-%EA%B0%95%EC%95%84%EC%A7%80%EC%99%80-%EA%B0%80%EB%B3%BC%EB%A7%8C%ED%95%9C-%EA%B3%B3-TOP-3"
+    }
   },
   "attraction-6b36b1c5e3d8": {
     "blogs": [],
@@ -926,6 +1208,16 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "year": 2024,
       "label": "연간 입장객",
       "source": "https://www.ulsanpress.net/news/articleView.html?idxno=545255"
+    },
+    "barrierFree": {
+      "status": "no",
+      "note": "계단·금속 구조라 휠체어·유모차로 건널 수 없음. 인근 전망 공간에서 조망",
+      "source": "https://www.ablenews.co.kr/news/articleView.html?idxno=219019"
+    },
+    "pets": {
+      "status": "no",
+      "note": "출렁다리는 반려견 출입 불가",
+      "source": "https://kkamiiii.com/entry/%EC%9A%B8%EC%82%B0-%EC%95%A0%EA%B2%AC%EB%8F%99%EB%B0%98%EC%97%AC%ED%96%89-%EA%B0%95%EC%95%84%EC%A7%80%EC%99%80-%EA%B0%80%EB%B3%BC%EB%A7%8C%ED%95%9C-%EA%B3%B3-TOP-3"
     }
   },
   "attraction-362c4cae73a6": {
@@ -977,7 +1269,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     },
     "wikiTitles": [
       "ko:진하해수욕장"
-    ]
+    ],
+    "pets": {
+      "status": "yes",
+      "note": "전 견종·전 구역 동반 가능, 목줄 필수, 입수 시 보호자 동행, 맹견 입마개",
+      "source": "https://info.koreacharts.com/tour/126096/contents.html"
+    }
   },
   "ulsan-grand-park": {
     "blogs": [],
@@ -999,7 +1296,17 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     "wikiTitles": [
       "ko:울산대공원",
       "en:Ulsan Grand Park"
-    ]
+    ],
+    "barrierFree": {
+      "status": "partial",
+      "note": "정·동·남문 경비실에서 신분증 제시 후 휠체어 무료 대여",
+      "source": "https://www.uic.or.kr/ulsanpark/introduction/intro02_4.do"
+    },
+    "pets": {
+      "status": "partial",
+      "note": "일부 구역 산책만 가능(목줄 필수), 장미원·동물원 등 시설은 동반 불가",
+      "source": "https://info.koreacharts.com/tour/127644/contents.html"
+    }
   }
 };
 
