@@ -1,6 +1,7 @@
 import type { Place, PlaceCatalog, Score, Transport, UserProfile } from "../types/travel";
 import { CATEGORY_INTERESTS } from "./place-categories";
 import { hasCoordinates } from "./place-coordinates";
+import { accessBonus, isAccessibleFor } from "./access";
 
 export { CATEGORY_INTERESTS } from "./place-categories";
 
@@ -39,6 +40,8 @@ export interface ScoredPlace {
   totalScore: number;
   preferenceFit: number;
   breakdown: ScoreBreakdown;
+  /** 휠체어·반려동물 조건에서 확인된 장소를 앞세우는 선정 가점(화면 점수에는 포함하지 않음). */
+  accessBonus?: number;
 }
 
 /** 화면용 취향 적합도. 유명도·관광두레는 제외하며 만족 확률을 뜻하지 않습니다. */
@@ -68,7 +71,7 @@ function preferenceFit(profile: UserProfile, place: Place, breakdown: ScoreBreak
 
 /** 취향에 더 잘 맞는 후보를 우선하기 위한 내부 선정 점수입니다. */
 function selectionScore(candidate: ScoredPlace): number {
-  return candidate.totalScore + candidate.preferenceFit * 0.5;
+  return candidate.totalScore + candidate.preferenceFit * 0.5 + (candidate.accessBonus ?? 0);
 }
 
 function detail(match: number, weight: number, reason: string): ScoreDetail {
@@ -147,7 +150,12 @@ export function scorePlace(profile: UserProfile, place: Place): ScoredPlace {
       place.isTourismDure === null ? "관광두레 여부가 확인되지 않아 가점을 적용하지 않았어요."
         : place.isTourismDure ? "등록 데이터의 관광두레 여부에 따라 가점을 적용했어요." : "관광두레 가점이 없는 장소예요."),
   };
-  return { place, totalScore: Object.values(breakdown).reduce((sum, item) => sum + item.points, 0), preferenceFit: preferenceFit(profile, place, breakdown), breakdown };
+  return {
+    place, breakdown,
+    totalScore: Object.values(breakdown).reduce((sum, item) => sum + item.points, 0),
+    preferenceFit: preferenceFit(profile, place, breakdown),
+    accessBonus: accessBonus(profile.accessNeeds, place),
+  };
 }
 
 function compareScores(a: ScoredPlace, b: ScoredPlace): number {
@@ -156,7 +164,7 @@ function compareScores(a: ScoredPlace, b: ScoredPlace): number {
 
 /** 같은 ID는 점수가 가장 높은 항목 하나만 유지합니다. 동점은 ID순입니다. */
 export function rankPlaces(profile: UserProfile, places: readonly Place[]): ScoredPlace[] {
-  const ranked = places.filter((place) => profile.region === "all" || place.district === profile.region).map((place) => scorePlace(profile, place)).sort(compareScores);
+  const ranked = places.filter((place) => (profile.region === "all" || place.district === profile.region) && isAccessibleFor(profile.accessNeeds, place)).map((place) => scorePlace(profile, place)).sort(compareScores);
   const seen = new Set<string>();
   return ranked.filter(({ place }) => {
     if (seen.has(place.id)) return false;
