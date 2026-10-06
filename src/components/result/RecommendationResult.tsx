@@ -9,6 +9,8 @@ import CourseTimeline from "@/src/components/result/CourseTimeline";
 import { createTravelCopy } from "@/src/lib/travel-copy";
 import { createSchedule, formatScheduleTime } from "@/src/lib/recommendation";
 import { DISTRICT_LABELS } from "@/src/types/travel";
+import PetroglyphGlyph from "@/src/components/petroglyph/PetroglyphGlyph";
+import { describeAxes, getPetroglyphType } from "@/src/lib/petroglyph-type";
 const companionLabels = { solo: "혼자", couple: "연인과", friends: "친구와", family: "가족과" };
 const transportLabels = { car: "자가용", "public-transit": "대중교통", walking: "도보" };
 const interestLabels = { nature: "자연", sea: "바다", culture: "문화", experience: "체험", food: "음식", photo: "사진" };
@@ -30,6 +32,7 @@ export default function RecommendationResult() {
   }
   const { profile } = trip;
   const travelCopy = createTravelCopy(profile, mapPlaces);
+  const travelerType = getPetroglyphType(profile);
   const totalStayMinutes = stops.reduce((sum, { place }) => sum + place.recommendedDuration, 0);
 
   const totalTravelMinutes = schedule.reduce((sum, stop) => sum + stop.travelMinutes, 0);
@@ -45,6 +48,21 @@ export default function RecommendationResult() {
             <p className="mt-3 text-base leading-8 text-slate-600 sm:text-lg">{travelCopy.introduction}</p>
           </div>
         </header>
+
+        <section aria-labelledby="type-heading" className="mt-8 grid items-center gap-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:mt-10 sm:grid-cols-[180px_minmax(0,1fr)] sm:p-7">
+          <div className="flex aspect-square max-w-[180px] items-center justify-center rounded-2xl bg-stone-200 text-slate-700">
+            <PetroglyphGlyph glyph={travelerType.glyph} label={travelerType.motif} filterId="pecked-result" className="h-4/5 w-4/5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-bold tracking-[0.2em] text-teal-700">나의 암각화 여행자 유형 · <span className="font-mono">{travelerType.code}</span></p>
+            <h2 id="type-heading" className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{travelerType.name}</h2>
+            <p className="mt-2 text-sm leading-7 text-slate-600">{travelerType.tagline}</p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {describeAxes(travelerType.code).map((label) => <span key={label} className="rounded-full bg-teal-50 px-3 py-1 text-xs text-teal-900">{label}</span>)}
+            </div>
+            <Link href={`/types#${travelerType.code}`} className="mt-4 inline-flex text-sm font-semibold text-teal-800 underline underline-offset-4">16가지 유형과 궁합 보기 →</Link>
+          </div>
+        </section>
 
         <section aria-labelledby="style-heading" className="my-8 rounded-3xl border border-teal-100 bg-teal-50/60 p-6 sm:my-10 sm:p-8">
           <h2 id="style-heading" className="text-sm font-bold text-teal-800">여행 스타일 요약</h2>

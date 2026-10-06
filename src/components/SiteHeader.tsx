@@ -8,7 +8,10 @@ export default function SiteHeader() {
           <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-700 text-xl font-bold text-white">u.</span>
           <span className="text-lg font-bold tracking-tight text-slate-900">울산, 나의 여행<span className="mt-0.5 block text-[10px] font-medium tracking-[0.2em] text-teal-700">MY ULSAN TRIP</span></span>
         </Link>
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <Link href="/types" className="hidden min-h-11 sm:inline-flex items-center rounded-full px-3 text-sm font-semibold text-slate-700 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700">여행자 유형</Link>
         <Link href="/survey" className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-teal-50 px-4 text-sm font-semibold text-teal-800 hover:bg-teal-100 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700">여행 만들기 <span aria-hidden="true" className="ml-2">↗</span></Link>
+        </div>
       </nav>
     </header>
   );
