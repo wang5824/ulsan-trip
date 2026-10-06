@@ -43,17 +43,43 @@ async function findPhoto(titles: readonly string[]): Promise<Photo | null> {
 }
 
 /** 장소 사진. 조사된 위키백과 문서에 자유 이용 사진이 있을 때만 보여주고, 없으면 암각화 그림으로 대신합니다. */
-export default function PlacePhoto({ titles, alt, glyph, glyphId }: { titles?: readonly string[]; alt: string; glyph: GlyphKey; glyphId: string }) {
+export default function PlacePhoto({ titles, licensed, alt, glyph, glyphId }: {
+  titles?: readonly string[];
+  /** 조사로 확인한 이용 허락 사진. 있으면 위키백과보다 먼저 씁니다. */
+  licensed?: { url: string; page: string; credit: string; license: string; noAlter: boolean };
+  alt: string; glyph: GlyphKey; glyphId: string;
+}) {
   const key = titles?.join("|") ?? "";
-  const [photo, setPhoto] = useState<Photo | null | undefined>(titles?.length ? undefined : null);
+  const [photo, setPhoto] = useState<Photo | null | undefined>(titles?.length && !licensed ? undefined : null);
+  const [broken, setBroken] = useState(false);
 
   useEffect(() => {
-    if (!titles?.length) return;
+    if (licensed || !titles?.length) return;
     let alive = true;
     if (!cache.has(key)) cache.set(key, findPhoto(titles).catch(() => null));
     cache.get(key)!.then(result => { if (alive) setPhoto(result); });
     return () => { alive = false; };
-  }, [key, titles]);
+  }, [key, titles, licensed]);
+
+  if (licensed && !broken) {
+    return (
+      <figure className="relative overflow-hidden rounded-t-[1.5rem] bg-rock">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={licensed.url}
+          alt={alt}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setBroken(true)}
+          // 변경금지 조건 사진은 자르지 않고 원본 비율 그대로 보여줍니다.
+          className={`aspect-[16/9] w-full ${licensed.noAlter ? "object-contain" : "object-cover"}`}
+        />
+        <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-2 pt-6 text-[10px] leading-4 text-white/85">
+          사진: <a href={licensed.page} target="_blank" rel="noreferrer" className="underline underline-offset-2">{licensed.credit}</a> · {licensed.license}
+        </figcaption>
+      </figure>
+    );
+  }
 
   if (!photo) {
     return (
