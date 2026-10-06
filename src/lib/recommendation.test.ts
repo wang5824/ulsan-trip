@@ -485,3 +485,25 @@ test("캐릭터 한마디는 데이터에 맞는 문장을 고르고 항상 한 
   const plain = characterQuips({ code: "ACTL", profile, place: fixture({ id: "plain", indoor: false, activityLevel: 2 }), arrivalMinutes: 600, travelMinutes: 25, isFirst: false, isLast: false });
   assert.ok(plain.lines.length >= 1 && plain.lines.length <= 2);
 });
+
+test("TourAPI 사진은 울산 주소·같은 이름(또는 1km 안)·공공누리 1·3유형만 고른다", async () => {
+  const { findTourPhoto } = await import("./tour-api");
+  const place = placeCatalog.attractions.find(p => p.id === "daewangam-park")!;
+  const original = globalThis.fetch;
+  const items = [
+    { title: "대왕암공원", addr1: "부산광역시 어딘가", firstimage: "http://tong.visitkorea.or.kr/busan.jpg", cpyrhtDivCd: "Type1", mapx: "129", mapy: "35" },
+    { title: "대왕암공원", addr1: "울산광역시 동구 등대로 140", firstimage: "http://tong.visitkorea.or.kr/no-license.jpg", cpyrhtDivCd: "", mapx: String(place.longitude), mapy: String(place.latitude) },
+    { title: "대왕암공원", addr1: "울산광역시 동구 등대로 140", firstimage: "http://tong.visitkorea.or.kr/ok.jpg", cpyrhtDivCd: "Type3", contentid: "126", mapx: String(place.longitude), mapy: String(place.latitude) },
+  ];
+  globalThis.fetch = (async () => new Response(JSON.stringify({ response: { body: { items: { item: items } } } }))) as typeof fetch;
+  try {
+    const photo = await findTourPhoto(place, "test-key");
+    assert.equal(photo?.url, "https://tong.visitkorea.or.kr/ok.jpg");
+    assert.equal(photo?.license, "공공누리 제3유형");
+    assert.equal(photo?.noAlter, true);
+    globalThis.fetch = (async () => new Response(JSON.stringify({ response: { body: { items: "" } } }))) as typeof fetch;
+    assert.equal(await findTourPhoto(place, "test-key"), null);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
