@@ -256,20 +256,22 @@ test("희망 지역은 관광지와 음식점 및 카페에 모두 적용하며 
   }
 });
 
-test("새 질문 응답은 필수이며 프로필에 유명도와 지역이 전달된다", () => {
+test("경로 설문 응답은 필수이며 유형검사 취향과 합쳐 프로필이 된다", () => {
+  const taste = { popularityPreference: "famous" as const, activityLevel: 2 as const, restFrequency: 5 as const, interests: ["nature" as const, "food" as const] };
   const answers: SurveyAnswers = {
-    companion: "family", transport: "car", activityLevel: "2", restFrequency: "5",
-    nature: "4", food: "3", culture: "3", experience: "3", preferredFood: "any",
+    companion: "family", transport: "car", preferredFood: "any",
     startTime: "09:00", endTime: "18:00",
   };
-  assert.equal(buildUserProfile(answers), null);
-  answers.popularityPreference = "famous";
+  assert.equal(buildUserProfile(answers, taste), null);
   answers.region = "ulju";
-  const built = buildUserProfile(answers);
+  const built = buildUserProfile(answers, taste);
   assert.equal(built?.popularityPreference, "famous");
   assert.equal(built?.region, "ulju");
+  assert.equal(built?.activityLevel, 2);
+  assert.deepEqual(built?.interests, ["nature", "food"]);
+  assert.notEqual(built?.interests, taste.interests);
   answers.region = "invalid";
-  assert.equal(buildUserProfile(answers), null);
+  assert.equal(buildUserProfile(answers, taste), null);
 });
 
 
@@ -327,11 +329,10 @@ test("필수 장소 질문은 건너뛸 수 있고 최대 두 곳까지 프로�
   assert.equal(isQuestionAnswered("requiredPlaces", { requiredPlaceIds: ["a", "b"] }), true);
   assert.equal(isQuestionAnswered("requiredPlaces", { requiredPlaceIds: ["a", "b", "c"] }), false);
   const answers: SurveyAnswers = {
-    popularityPreference: "any", region: "all", companion: "family", transport: "car",
-    activityLevel: "2", restFrequency: "5", nature: "4", food: "3", culture: "3", experience: "3",
+    region: "all", companion: "family", transport: "car",
     preferredFood: "any", startTime: "09:00", endTime: "18:00", requiredPlaceIds: ["a", "b"],
   };
-  const built = buildUserProfile(answers);
+  const built = buildUserProfile(answers, profile);
   assert.deepEqual(built?.requiredPlaceIds, ["a", "b"]);
   assert.notEqual(built?.requiredPlaceIds, answers.requiredPlaceIds);
 });
@@ -396,4 +397,37 @@ test("암각화 여행자 유형: 16개 코드가 모두 정의되고 설문 프
   assert.equal(best, "ANTF");
   assert.equal(pace, "SNEF");
   assert.ok(findPetroglyphType(best) && findPetroglyphType(pace));
+});
+
+test("유형검사: 12문항이 축마다 3개씩이고 응답으로 유형과 추천 취향을 계산한다", async () => {
+  const { TYPE_TEST_QUESTIONS } = await import("../data/type-test");
+  const { scoreTypeTest } = await import("./type-test");
+  const { getPetroglyphCode } = await import("./petroglyph-type");
+  assert.equal(TYPE_TEST_QUESTIONS.length, 12);
+  for (const axis of [0, 1, 2, 3]) assert.equal(TYPE_TEST_QUESTIONS.filter(q => q.axis === axis).length, 3);
+  const pick = (code: string) => TYPE_TEST_QUESTIONS.map(q => q.options.find(o => o.letter === code[q.axis])!.letter);
+  const answersFor = (code: string) => pick(code);
+  // 16개 유형 모두 도달할 수 있고, 취향 값으로 다시 계산해도 같은 유형이 나온다.
+  for (const a of "AS") for (const b of "NC") for (const c of "ET") for (const d of "FL") {
+    const result = scoreTypeTest(answersFor(a + b + c + d));
+    assert.equal(result?.code, a + b + c + d);
+    assert.equal(getPetroglyphCode(result!.taste), a + b + c + d);
+  }
+  const allFirst = scoreTypeTest(answersFor("ANEF"))!;
+  assert.deepEqual(allFirst.taste, { activityLevel: 5, restFrequency: 1, interests: ["nature", "experience"], popularityPreference: "famous" });
+  assert.equal(scoreTypeTest(answersFor("SCTL"))!.taste.popularityPreference, "hidden");
+  // 2:1로 갈린 축도 다수결을 따르고 취향 값이 일관된다.
+  const mixed = answersFor("ANEF");
+  const firstEnergy = TYPE_TEST_QUESTIONS.findIndex(q => q.axis === 0);
+  const firstPlace = TYPE_TEST_QUESTIONS.findIndex(q => q.axis === 3);
+  mixed[firstEnergy] = "S";
+  mixed[firstPlace] = "L";
+  const mixedResult = scoreTypeTest(mixed)!;
+  assert.equal(mixedResult.code, "ANEF");
+  assert.equal(mixedResult.taste.activityLevel, 4);
+  assert.equal(mixedResult.taste.popularityPreference, "any");
+  assert.equal(getPetroglyphCode(mixedResult.taste), "ANEF");
+  // 빠진 응답이나 다른 축 글자는 거부한다.
+  assert.equal(scoreTypeTest(mixed.slice(0, 11)), null);
+  assert.equal(scoreTypeTest(mixed.map((value, i) => (i === 0 ? "N" : value))), null);
 });

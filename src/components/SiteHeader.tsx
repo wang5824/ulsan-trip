@@ -1,17 +1,30 @@
 import Link from "next/link";
+import PetroglyphGlyph from "./petroglyph/PetroglyphGlyph";
+import { focusRing } from "./ui";
+
+const links = [
+  { href: "/types", label: "16유형 도감" },
+  { href: "/survey", label: "코스 만들기" },
+  { href: "/test", label: "유형검사" },
+];
 
 export default function SiteHeader() {
   return (
-    <header className="border-b border-teal-900/5 bg-white">
-      <nav aria-label="주 메뉴" className="mx-auto flex min-h-20 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
-        <Link href="/" className="flex items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700">
-          <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-700 text-xl font-bold text-white">u.</span>
-          <span className="text-lg font-bold tracking-tight text-slate-900">울산, 나의 여행<span className="mt-0.5 block text-[10px] font-medium tracking-[0.2em] text-teal-700">MY ULSAN TRIP</span></span>
+    <header className="sticky top-0 z-40 border-b border-line/80 bg-paper/85 backdrop-blur-md">
+      <nav aria-label="주 메뉴" className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:min-h-18 sm:px-8">
+        <Link href="/" className={`flex min-w-0 items-center gap-2.5 rounded-lg ${focusRing}`}>
+          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rock text-bone">
+            <PetroglyphGlyph glyph="whaleCalf" label="" filterId="pecked-logo" className="h-7 w-7" />
+          </span>
+          <span className="truncate font-display text-lg font-bold tracking-tight text-ink">울산, 나의 여행</span>
         </Link>
-        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-        <Link href="/types" className="hidden min-h-11 sm:inline-flex items-center rounded-full px-3 text-sm font-semibold text-slate-700 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700">여행자 유형</Link>
-        <Link href="/survey" className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-teal-50 px-4 text-sm font-semibold text-teal-800 hover:bg-teal-100 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700">여행 만들기 <span aria-hidden="true" className="ml-2">↗</span></Link>
-        </div>
+        <ul className="flex shrink-0 items-center gap-0.5 text-sm font-semibold sm:gap-1">
+          {links.map(({ href, label }, index) => (
+            <li key={href} className={index === 2 ? "" : "hidden sm:block"}>
+              <Link href={href} className={`inline-flex min-h-10 items-center rounded-full px-3.5 transition-colors ${index === 2 ? "bg-ink text-paper hover:bg-rock-2" : "text-ink-2 hover:bg-sand hover:text-ink"} ${focusRing}`}>{label}</Link>
+            </li>
+          ))}
+        </ul>
       </nav>
     </header>
   );

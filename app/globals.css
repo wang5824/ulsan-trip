@@ -1,6 +1,49 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-geist-sans), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-plex-kr), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-display: var(--font-gowun), "AppleMyungjo", "Batang", serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* 반구천의 암각화에서 가져온 팔레트: 바위·모래·먹·바다·붉은 흙(오커) */
+@theme {
+  --color-paper: #f5efe5;
+  --color-sand: #ebe2d3;
+  --color-card: #fdfaf4;
+  --color-line: #ded2bf;
+  --color-ink: #1f1a15;
+  --color-ink-2: #4e453c;
+  --color-ink-3: #786c5f;
+  --color-rock: #2a241f;
+  --color-rock-2: #3a322b;
+  --color-bone: #efe4d0;
+  --color-sea: #15495a;
+  --color-sea-2: #0e3644;
+  --color-sea-tint: #dde9e7;
+  --color-ochre: #b4532c;
+  --color-ochre-2: #963f1d;
+  --color-ochre-tint: #f4e0d1;
+}
+
+/* 바위 표면 같은 미세한 입자감 */
+.grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.16 0 0 0 0 0.12 0 0 0 0 0.08 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.grain-dark {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.9 0 0 0 0 0.8 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-rise {
+  animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise { animation: none; }
 }

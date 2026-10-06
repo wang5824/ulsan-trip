@@ -47,7 +47,7 @@ export default function KakaoMap({ places }: { places: readonly Place[] }) {
             map,
             path: positions,
             strokeWeight: 3,
-            strokeColor: "#0f766e",
+            strokeColor: "#b4532c",
             strokeOpacity: 0.8,
             strokeStyle: "dash",
           });
@@ -58,14 +58,14 @@ export default function KakaoMap({ places }: { places: readonly Place[] }) {
           const position = positions[index];
           bounds.extend(position);
           // SVG에는 배열 번호만 삽입하며 장소명 등 외부 문자열은 삽입하지 않습니다.
-          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="46" viewBox="0 0 40 46"><path d="M20 45 12 34a18 18 0 1 1 16 0Z" fill="#0f766e" stroke="white" stroke-width="2"/><text x="20" y="25" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="17" font-weight="bold">${visitNumber}</text></svg>`;
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="46" viewBox="0 0 40 46"><path d="M20 45 12 34a18 18 0 1 1 16 0Z" fill="#2a241f" stroke="#efe4d0" stroke-width="2"/><text x="20" y="25" text-anchor="middle" fill="#f4e0d1" font-family="Arial,sans-serif" font-size="17" font-weight="bold">${visitNumber}</text></svg>`;
           const image = new maps.MarkerImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, new maps.Size(40, 46), { offset: new maps.Point(20, 46) });
           const marker = new maps.Marker({ map, position, image, title: `${visitNumber}. ${place.name}` });
           cleanups.push(() => marker.setMap(null));
           const onClick = () => {
             if (cancelled) return;
             const content = document.createElement("div");
-            content.style.cssText = "padding:12px 28px 12px 12px;max-width:240px;color:#0f172a;font-size:14px;white-space:normal;";
+            content.style.cssText = "padding:12px 28px 12px 12px;max-width:240px;color:#1f1a15;font-size:14px;white-space:normal;";
             const title = document.createElement("strong");
             title.textContent = `${visitNumber}. ${place.name}`;
             const category = document.createElement("p");
@@ -108,26 +108,26 @@ export default function KakaoMap({ places }: { places: readonly Place[] }) {
 
   return (
     <div>
-      <div className="relative isolate overflow-hidden rounded-2xl border border-teal-100 bg-teal-50/50">
+      <div className="relative isolate overflow-hidden rounded-2xl border border-line bg-sand">
         <div ref={containerRef} aria-label="추천 장소 지도" aria-busy={entries.length > 0 && status === "loading"} className="h-80 w-full sm:h-96 lg:h-[28rem]" />
         {entries.length === 0 ? (
-          <p className="absolute inset-0 z-10 flex items-center justify-center p-6 text-center text-sm text-slate-600">{places.length > 0 ? "장소의 좌표가 확인되지 않아 지도에 표시할 수 없습니다." : "지도에 표시할 추천 장소가 없습니다."}</p>
+          <p className="absolute inset-0 z-10 flex items-center justify-center p-6 text-center text-sm text-ink-2">{places.length > 0 ? "장소의 좌표가 확인되지 않아 지도에 표시할 수 없습니다." : "지도에 표시할 추천 장소가 없습니다."}</p>
         ) : status !== "ready" && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-teal-50 p-6 text-center">
-            {status === "loading" ? <p role="status" className="rounded-full border border-teal-100 bg-white px-5 py-3 text-sm font-medium text-teal-800">지도를 불러오는 중입니다…</p> : (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-sand p-6 text-center">
+            {status === "loading" ? <p role="status" className="rounded-full border border-line bg-card px-5 py-3 text-sm font-medium text-ink-2">지도를 불러오는 중입니다…</p> : (
               <>
-                <p role="alert" className="font-semibold text-slate-800">지도를 불러오지 못했습니다.</p>
-                <p className="mt-2 text-sm text-slate-600">잠시 후 다시 시도해주세요. 추천 일정은 계속 확인할 수 있어요.</p>
-                <button type="button" onClick={() => setAttempt((value) => value + 1)} className="mt-5 min-h-12 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">다시 시도</button>
+                <p role="alert" className="font-semibold text-ink">지도를 불러오지 못했습니다.</p>
+                <p className="mt-2 text-sm text-ink-2">잠시 후 다시 시도해주세요. 추천 일정은 계속 확인할 수 있어요.</p>
+                <button type="button" onClick={() => setAttempt((value) => value + 1)} className="mt-5 min-h-12 rounded-xl bg-ochre px-5 py-3 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ochre">다시 시도</button>
               </>
             )}
           </div>
         )}
       </div>
-      <p aria-live="polite" className="mt-4 text-sm leading-6 text-slate-600">
+      <p aria-live="polite" className="mt-4 text-sm leading-6 text-ink-2">
         {entries.length > 0 && selected && status === "ready" ? `${selected.name} · ${categoryLabels[selected.category]}` : "번호 마커를 누르면 장소 이름과 카테고리를 볼 수 있어요."}
       </p>
-      <p className="mt-2 text-xs leading-5 text-slate-500">
+      <p className="mt-2 text-xs leading-5 text-ink-3">
         추천 방문 순서를 직선으로 표시한 것으로 실제 이동 경로와 다를 수 있습니다.
         {entries.length < places.length && ` 좌표 미확인·비정상 장소 ${places.length - entries.length}곳은 지도에서 제외했습니다.`}
       </p>
