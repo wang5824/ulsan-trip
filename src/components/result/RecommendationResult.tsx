@@ -42,6 +42,8 @@ export default function RecommendationResult() {
     profile.region === "all" ? "울산 전체" : DISTRICT_LABELS[profile.region],
     transportLabels[profile.transport],
     `${profile.startTime} – ${profile.endTime}`,
+    ...(profile.accessNeeds?.wheelchair ? ["휠체어·유모차"] : []),
+    ...(profile.accessNeeds?.pets ? ["반려동물 동반"] : []),
     ...requiredNames.map(name => `꼭 가기 · ${name}`),
   ];
 
@@ -92,7 +94,7 @@ export default function RecommendationResult() {
                 ? `체류 ${totalStayMinutes}분과 이동 약 ${totalTravelMinutes}분을 선택한 종료 시간 안에 맞췄어요.`
                 : "선택한 지역과 시간에 맞는 관광지가 없습니다. 지역을 넓히거나 여행 시간을 늘려보세요."}
             </p>
-            <CourseTimeline stops={schedule} />
+            <CourseTimeline stops={schedule} traveler={travelerType} profile={profile} />
           </section>
 
           <aside aria-labelledby="map-heading" className="min-w-0 rounded-[1.75rem] border border-line bg-card p-4 sm:p-6 lg:sticky lg:top-24">
