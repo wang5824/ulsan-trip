@@ -1,47 +1,25 @@
-const ratingOptions = [
-  { value: "1", label: "1 · 전혀 좋아하지 않아요" },
-  { value: "2", label: "2 · 별로 좋아하지 않아요" },
-  { value: "3", label: "3 · 보통이에요" },
-  { value: "4", label: "4 · 좋아해요" },
-  { value: "5", label: "5 · 아주 좋아해요" },
-];
-
+/** 2단계 경로 추천 설문입니다. 여행 취향은 1단계 유형검사 결과를 사용합니다. */
 export const surveyQuestions = [
-  { id: "companion", title: "누구와 여행하시나요?", options: [
+  { id: "companion", title: "누구와 여행하시나요?", help: "동행에 맞춰 장소의 분위기를 골라요.", options: [
     { value: "solo", label: "혼자" }, { value: "couple", label: "연인" },
     { value: "friends", label: "친구" }, { value: "family", label: "가족" },
   ] },
-  { id: "region", title: "울산의 어느 지역을 여행하고 싶으신가요?", options: [
-    { value: "all", label: "울산 전체 · 지역 제한 없이 추천" },
-    { value: "ulju", label: "울주군" }, { value: "buk", label: "북구" },
-    { value: "dong", label: "동구" }, { value: "jung", label: "중구" },
-    { value: "nam", label: "남구" },
+  { id: "region", title: "울산의 어느 지역을 여행하고 싶으신가요?", help: "선택한 구·군 안에서만 장소를 추천해요.", options: [
+    { value: "all", label: "울산 전체", hint: "지역 제한 없이 추천" },
+    { value: "ulju", label: "울주군", hint: "간절곶·반구대·영남알프스" }, { value: "buk", label: "북구", hint: "강동 해변·주상절리" },
+    { value: "dong", label: "동구", hint: "대왕암공원·주전 몽돌" }, { value: "jung", label: "중구", hint: "태화강·원도심" },
+    { value: "nam", label: "남구", hint: "장생포·울산대공원" },
   ] },
-  { id: "transport", title: "주로 어떻게 이동하시나요?", options: [
+  { id: "transport", title: "주로 어떻게 이동하시나요?", help: "이동수단에 따라 장소 사이 거리를 조절해요.", options: [
     { value: "car", label: "자가용" }, { value: "public-transit", label: "대중교통" },
   ] },
-  { id: "time", title: "몇 시부터 몇 시까지 여행할 수 있나요?", options: [] },
-  { id: "popularityPreference", title: "어떤 장소를 더 좋아하시나요?", options: [
-    { value: "famous", label: "유명한 대표 관광지 위주로 가고 싶어요" },
-    { value: "hidden", label: "덜 알려진 숨은 장소를 발견하고 싶어요" },
-    { value: "any", label: "둘 다 좋아요" },
-  ] },
-  { id: "nature", title: "자연을 즐기는 여행을 얼마나 좋아하시나요?", options: ratingOptions },
-  { id: "culture", title: "역사와 문화를 알아가는 여행을 얼마나 좋아하시나요?", options: ratingOptions },
-  { id: "experience", title: "직접 참여하는 체험을 얼마나 좋아하시나요?", options: ratingOptions },
-  { id: "food", title: "맛집을 찾아가는 여행을 얼마나 좋아하시나요?", options: ratingOptions },
-  { id: "preferredFood", title: "어떤 음식을 가장 선호하시나요?", options: [
+  { id: "time", title: "몇 시부터 몇 시까지 여행할 수 있나요?", help: "같은 날의 시작·종료 시간을 선택해주세요. 한국 시각 기준입니다.", options: [] },
+  { id: "preferredFood", title: "어떤 음식을 가장 선호하시나요?", help: "코스 중간 식사 장소를 고를 때 반영해요.", options: [
     { value: "any", label: "상관없어요" }, { value: "korean", label: "한식" },
     { value: "seafood", label: "해산물" }, { value: "western", label: "양식" },
     { value: "vegetarian", label: "채식" },
   ] },
-  { id: "activityLevel", title: "활동적인 여행을 얼마나 좋아하시나요?", options: ratingOptions },
-  { id: "restFrequency", title: "여행 중 휴식이 얼마나 자주 필요한가요?", options: [
-    { value: "5", label: "자주 · 틈틈이 쉬고 싶어요" },
-    { value: "3", label: "보통 · 적당히 쉬고 싶어요" },
-    { value: "1", label: "적게 · 쉬는 시간이 적어도 괜찮아요" },
-  ] },
-  { id: "requiredPlaces", title: "꼭 방문하고 싶은 장소가 있나요? (선택)", options: [] },
+  { id: "requiredPlaces", title: "꼭 방문하고 싶은 장소가 있나요?", help: "선택 사항이에요. 원하는 장소가 없으면 그대로 넘어가세요.", options: [] },
 ] as const;
 
 export type QuestionId = (typeof surveyQuestions)[number]["id"];
