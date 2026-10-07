@@ -14,6 +14,8 @@ import type { TravelRegion } from "../../types/travel";
 import { useTravel } from "../TravelProvider";
 import { buttonPrimary, buttonSecondary, eyebrow, focusRing } from "../ui";
 
+const ADVANCE_DELAY_MS = 260;
+
 export default function SurveyForm() {
   const { ready, typeResult } = useTravel();
 
@@ -47,10 +49,12 @@ function RouteSurvey() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const type = findPetroglyphType(typeResult!.code)!;
   const taste = typeResult!.taste;
   const question = surveyQuestions[step];
   const isLast = step === surveyQuestions.length - 1;
+  const isChoice = question.id !== "time" && question.id !== "requiredPlaces";
   const draftProfile = buildUserProfile(answers, taste);
   const requiredIssues = draftProfile ? getRequiredPlaceIssues(draftProfile, placeCatalog) : [];
   const canContinue = isQuestionAnswered(question.id, answers) && (!isLast || requiredIssues.length === 0);
@@ -58,6 +62,24 @@ function RouteSurvey() {
   const total = surveyQuestions.length;
 
   useEffect(() => { headingRef.current?.focus({ preventScroll: true }); }, [step]);
+  useEffect(() => () => {
+    if (advanceTimer.current !== null) clearTimeout(advanceTimer.current);
+  }, []);
+
+  function goToStep(nextStep: number) {
+    if (advanceTimer.current !== null) {
+      clearTimeout(advanceTimer.current);
+      advanceTimer.current = null;
+    }
+    setStep(nextStep);
+  }
+
+  function choose(value: string) {
+    if (isPending || question.id === "time" || question.id === "requiredPlaces") return;
+    setAnswers(current => ({ ...current, [question.id]: value }));
+    if (advanceTimer.current !== null) clearTimeout(advanceTimer.current);
+    advanceTimer.current = setTimeout(() => goToStep(step + 1), ADVANCE_DELAY_MS);
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,7 +89,7 @@ function RouteSurvey() {
       if (!profile) return;
       completeSurvey(profile);
       startTransition(() => router.push("/result"));
-    } else setStep((current) => current + 1);
+    } else goToStep(step + 1);
   }
 
   const optionGrid = question.id === "region" || question.id === "preferredFood" ? "sm:grid-cols-2" : "grid-cols-2";
@@ -95,7 +117,7 @@ function RouteSurvey() {
 
         <form key={question.id} onSubmit={submit} className="animate-rise mt-7 rounded-[2rem] border border-line bg-card p-5 shadow-[0_20px_50px_-30px_rgba(42,36,31,0.45)] sm:p-8">
           <h1 id="question-title" ref={headingRef} tabIndex={-1} className="font-display text-2xl font-bold leading-snug tracking-tight outline-none sm:text-[1.75rem]">{question.title}</h1>
-          <p id="question-help" className="mb-7 mt-3 text-sm leading-6 text-ink-3">{question.help}</p>
+          <p id="question-help" className="mb-7 mt-3 text-sm leading-6 text-ink-3">{question.help}{isChoice && <span className="mt-1 block">선택하면 다음 질문으로 넘어가요.</span>}</p>
           {question.id === "requiredPlaces" ? (
             <RequiredPlacesPicker selectedIds={answers.requiredPlaceIds ?? []} region={answers.region as TravelRegion | undefined}
               onChange={requiredPlaceIds => setAnswers(current => ({ ...current, requiredPlaceIds }))}
@@ -116,14 +138,13 @@ function RouteSurvey() {
                 const checked = answers[question.id] === option.value;
                 const hint = "hint" in option ? option.hint : undefined;
                 return (
-                  <label key={option.value} className={`flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ochre ${checked ? "border-sea bg-sea-tint/70" : "border-line bg-paper/60 hover:border-ink-3"}`}>
-                    <input type="radio" name={question.id} value={option.value} checked={checked} onChange={() => setAnswers((current) => ({ ...current, [question.id]: option.value }))} className="sr-only" />
+                  <button key={option.value} type="button" aria-pressed={checked} disabled={isPending} onClick={() => choose(option.value)} className={`flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors ${focusRing} ${checked ? "border-sea bg-sea-tint/70" : "border-line bg-paper/60 hover:border-ink-3"}`}>
                     <span aria-hidden="true" className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${checked ? "border-sea" : "border-line"}`}>{checked && <span className="h-2.5 w-2.5 rounded-full bg-sea" />}</span>
                     <span className="min-w-0">
                       <span className="block text-[15px] font-semibold">{option.label}</span>
                       {hint && <span className="mt-0.5 block text-xs text-ink-3">{hint}</span>}
                     </span>
-                  </label>
+                  </button>
                 );
               })}
             </fieldset>
@@ -132,13 +153,13 @@ function RouteSurvey() {
             <ul className="list-disc space-y-2 pl-4">{requiredIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>
             <p className="mt-2">여행 시간을 늘리거나 필수 장소를 조정해주세요.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" onClick={() => setStep(surveyQuestions.findIndex(item => item.id === "time"))} className={`min-h-10 rounded-full border border-ochre/40 bg-card px-4 font-semibold ${focusRing}`}>여행 시간 수정</button>
+              <button type="button" onClick={() => goToStep(surveyQuestions.findIndex(item => item.id === "time"))} className={`min-h-10 rounded-full border border-ochre/40 bg-card px-4 font-semibold ${focusRing}`}>여행 시간 수정</button>
               {answers.region !== "all" && <button type="button" onClick={() => setAnswers(current => ({ ...current, region: "all" }))} className={`min-h-10 rounded-full border border-ochre/40 bg-card px-4 font-semibold ${focusRing}`}>여행 지역을 울산 전체로 변경</button>}
             </div>
           </div>}
           <div className="mt-8 flex gap-3 border-t border-line pt-6">
-            <button type="button" disabled={step === 0 || isPending} onClick={() => setStep((current) => current - 1)} className={`${buttonSecondary} flex-1`}>이전</button>
-            <button type="submit" disabled={!canContinue || isPending} className={`${buttonPrimary} flex-[1.4]`}>{isPending ? "이동 중…" : isLast ? "코스 보기" : question.id === "requiredPlaces" && !answers.requiredPlaceIds?.length ? "선택 없이 다음" : "다음"}</button>
+            <button type="button" disabled={step === 0 || isPending} onClick={() => goToStep(step - 1)} className={`${buttonSecondary} flex-1`}>이전</button>
+            {(!isChoice || canContinue) && <button type="submit" disabled={!canContinue || isPending} className={`${buttonPrimary} flex-[1.4]`}>{isPending ? "이동 중…" : isLast ? "코스 보기" : "다음"}</button>}
           </div>
         </form>
       </div>

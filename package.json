@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:recommendation": "node scripts/test-recommendation.mjs"
+    "test:recommendation": "node scripts/test-recommendation.mjs",
+    "test:photos": "node scripts/test-tourapi.mjs"
   },
   "dependencies": {
     "next": "16.3.5",

@@ -6,6 +6,8 @@
  * - wikiTitles: 사진 조사에 참고한 위키백과 문서 제목. 화면에서 API를 호출하지 않습니다.
  * - photo: 이용 허락이 표시된 사진. 공공누리 제4유형은 비영리·변경금지 조건이라 상업적으로 쓰게 되면 빼야 합니다.
  */
+import type { PlacePhotoData } from "../types/place-photo";
+
 export type AccessStatus = "yes" | "partial" | "no";
 
 export interface PlaceStory {
@@ -20,16 +22,7 @@ export interface PlaceStory {
    * 자유 이용 허락이 표시된 사진(공유마당 CC BY·기증저작물, 공공누리 등).
    * noAlter가 true면 변경금지 조건이라 자르지 않고 원본 비율 그대로 보여줍니다.
    */
-  photo?: {
-    /** public에 보관한 사진 경로. 외부 API 없이 제공합니다. */
-    url: string;
-    /** 다운로드 원본 주소(출처 확인용). */
-    sourceUrl: string;
-    page: string;
-    credit: string;
-    license: string;
-    noAlter: boolean;
-  };
+  photo?: PlacePhotoData;
 }
 
 export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
