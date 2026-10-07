@@ -61,8 +61,8 @@ export default function PlacePhoto({ placeId, photo: localPhoto, alt, glyph, gly
         onError={() => setFailedUrls(current => [...current, photo.url])}
         className={`aspect-[16/9] w-full ${photo.noAlter ? "object-contain" : "object-cover"}`}
       />
-      <figcaption className="px-3 py-2 text-[10px] leading-4 text-white/85">
-        사진: <a href={photo.page} target="_blank" rel="noreferrer" className="underline underline-offset-2">{photo.credit}</a> · {photo.license}
+      <figcaption className="px-3 py-1 text-right text-[9px] leading-3 text-white/50 transition-colors hover:text-white/80 focus-within:text-white/80">
+        사진: <a href={photo.page} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline focus-visible:underline">{photo.credit}</a> · {photo.license}
       </figcaption>
     </figure>
   );

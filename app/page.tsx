@@ -116,9 +116,9 @@ export default function Home() {
               sizes="(max-width: 1023px) calc(100vw - 40px), 540px"
               className="h-auto w-full"
             />
-            <figcaption className="px-5 py-4 text-[11px] leading-5 text-ink-3">
-              사진: <a href="https://commons.wikimedia.org/wiki/File:Bangudae3.jpg" className="underline underline-offset-2">울산암각화박물관 / Wikimedia Commons</a>
-              {" · "}<a href="https://creativecommons.org/licenses/by-sa/3.0/" className="underline underline-offset-2">CC BY-SA 3.0</a>
+            <figcaption className="px-3 py-1 text-right text-[9px] leading-3 text-ink-3 transition-colors hover:text-ink-2 focus-within:text-ink-2">
+              사진: <a href="https://commons.wikimedia.org/wiki/File:Bangudae3.jpg" className="underline-offset-2 hover:underline focus-visible:underline">울산암각화박물관 / Wikimedia Commons</a>
+              {" · "}<a href="https://creativecommons.org/licenses/by-sa/3.0/" className="underline-offset-2 hover:underline focus-visible:underline">CC BY-SA 3.0</a>
               {" · 크기 조정"}
             </figcaption>
           </figure>
