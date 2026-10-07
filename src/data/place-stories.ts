@@ -3,7 +3,7 @@
  * 모든 항목은 출처 URL과 함께 기록했고, 확인하지 못한 값은 넣지 않았습니다.
  * - visitors: 공식 통계·지자체 집계를 인용한 보도 기준. 집계 기준이 장소마다 달라 label에 적었습니다.
  * - barrierFree / pets: yes(가능) · partial(일부) · no(어려움). 방문 전 현장 확인이 필요합니다.
- * - wikiTitles: 사진을 가져올 위키백과 문서 제목("ko:제목" 또는 "en:제목"). 자유 이용 사진만 표시합니다.
+ * - wikiTitles: 사진 조사에 참고한 위키백과 문서 제목. 화면에서 API를 호출하지 않습니다.
  * - photo: 이용 허락이 표시된 사진. 공공누리 제4유형은 비영리·변경금지 조건이라 상업적으로 쓰게 되면 빼야 합니다.
  */
 export type AccessStatus = "yes" | "partial" | "no";
@@ -20,7 +20,16 @@ export interface PlaceStory {
    * 자유 이용 허락이 표시된 사진(공유마당 CC BY·기증저작물, 공공누리 등).
    * noAlter가 true면 변경금지 조건이라 자르지 않고 원본 비율 그대로 보여줍니다.
    */
-  photo?: { url: string; page: string; credit: string; license: string; noAlter: boolean };
+  photo?: {
+    /** public에 보관한 사진 경로. 외부 API 없이 제공합니다. */
+    url: string;
+    /** 다운로드 원본 주소(출처 확인용). */
+    sourceUrl: string;
+    page: string;
+    credit: string;
+    license: string;
+    noAlter: boolean;
+  };
 }
 
 export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
@@ -93,6 +102,14 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "status": "partial",
       "note": "정문·성곽 상부는 계단, 둘레 산책로는 완만한 오르막",
       "source": "https://www.welfarehello.com/community/hometownNews/55c47960-375a-428c-9e54-2bce6784d887"
+    },
+    "photo": {
+      "url": "/images/places/attraction-af8dd174e91c.jpg",
+      "page": "https://commons.wikimedia.org/wiki/File:Ulsan_Castles.jpg",
+      "credit": "문화재청 (공공누리 제1유형) / Wikimedia Commons",
+      "license": "CC BY-SA 4.0",
+      "noAlter": false,
+      "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/2/22/Ulsan_Castles.jpg"
     }
   },
   "attraction-c8efdfb247ee": {
@@ -706,11 +723,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "en:Sinbulsan"
     ],
     "photo": {
-      "url": "https://cdn.visitkorea.or.kr/img/call?cmd=VIEW&id=263a9b3c-1308-40f5-b2a6-82b9a444adca",
+      "url": "/images/places/attraction-9a0c06b7f229.jpg",
       "page": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=5dd6d062-6c2f-4ccb-920d-7fe58fc0f895",
       "credit": "한국관광공사",
       "license": "공공누리 제4유형 (출처표시-상업용금지-변경금지)",
-      "noAlter": true
+      "noAlter": true,
+      "sourceUrl": "https://cdn.visitkorea.or.kr/img/call?cmd=VIEW&id=263a9b3c-1308-40f5-b2a6-82b9a444adca"
     }
   },
   "attraction-26567fa9db6e": {
@@ -849,11 +867,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "source": "https://m.dailian.co.kr/news/view/1128955"
     },
     "photo": {
-      "url": "https://cdn.visitkorea.or.kr/img/call?cmd=VIEW&id=80d08eda-de89-425d-94f1-c591a827f535",
+      "url": "/images/places/attraction-02d7d96a2825.jpg",
       "page": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=51a1a924-b698-4928-b077-18bb9e2dca49",
       "credit": "한국관광공사 (여행작가 구완회)",
       "license": "공공누리 제4유형 (출처표시-상업용금지-변경금지)",
-      "noAlter": true
+      "noAlter": true,
+      "sourceUrl": "https://cdn.visitkorea.or.kr/img/call?cmd=VIEW&id=80d08eda-de89-425d-94f1-c591a827f535"
     }
   },
   "onggi-village": {
@@ -885,11 +904,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "source": "https://access.visitkorea.or.kr/ms/detail.do?cotId=db697a4c-a21e-4802-9ba4-12ed14b6298a"
     },
     "photo": {
-      "url": "https://cdn.visitkorea.or.kr/img/call?cmd=VIEW&id=daae64fb-0663-4673-be11-5d4d896bb507",
+      "url": "/images/places/onggi-village.jpg",
       "page": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=16a55bf1-56aa-4249-a67d-c66c69830756",
       "credit": "한국관광공사 (글·사진 서영진 여행작가)",
       "license": "공공누리 제4유형 (출처표시-상업용금지-변경금지)",
-      "noAlter": true
+      "noAlter": true,
+      "sourceUrl": "https://cdn.visitkorea.or.kr/img/call?cmd=VIEW&id=daae64fb-0663-4673-be11-5d4d896bb507"
     }
   },
   "attraction-f537690b569f": {
@@ -946,11 +966,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "ko:슬도"
     ],
     "photo": {
-      "url": "https://cdn.visitkorea.or.kr/img/call?cmd=VIEW&id=84e2824e-dbe8-4276-a279-f3e3f69df4a2",
+      "url": "/images/places/attraction-7126f8fcc59d.jpg",
       "page": "https://korean.visitkorea.or.kr/detail/rem_detail.do?cotid=79bfe44d-66f7-4ece-b153-063cc1a24747",
       "credit": "한국관광공사",
       "license": "공공누리 제4유형 (출처표시-상업용금지-변경금지)",
-      "noAlter": true
+      "noAlter": true,
+      "sourceUrl": "https://cdn.visitkorea.or.kr/img/call?cmd=VIEW&id=84e2824e-dbe8-4276-a279-f3e3f69df4a2"
     }
   },
   "attraction-29c60b06fe80": {
@@ -1039,11 +1060,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "en:Taehwagang National Garden"
     ],
     "photo": {
-      "url": "https://gongu.copyright.or.kr/gongu/wrt/cmmn/wrtFileImageView.do?wrtSn=13048987&filePath=L2Rpc2sxL25ld2RhdGEvMjAxNy85OC9DTFM2L1dSVF9UUkVBU1VSRV9IVU5UXzIwMTcwOTExXzEyNQ==&thumbAt=Y&thumbSe=b_tbumb&wrtTy=10006",
+      "url": "/images/places/taehwagang-national-garden.jpg",
       "page": "https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=13048987&menuNo=200023",
       "credit": "공유마당 / 조상근 (태화강 십리대밭교 반영)",
       "license": "CC BY 4.0",
-      "noAlter": false
+      "noAlter": false,
+      "sourceUrl": "https://gongu.copyright.or.kr/gongu/wrt/cmmn/wrtFileImageView.do?wrtSn=13048987&filePath=L2Rpc2sxL25ld2RhdGEvMjAxNy85OC9DTFM2L1dSVF9UUkVBU1VSRV9IVU5UXzIwMTcwOTExXzEyNQ==&thumbAt=Y&thumbSe=b_tbumb&wrtTy=10006"
     }
   },
   "attraction-b67e2eda56d3": {
@@ -1057,7 +1079,15 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
     },
     "wikiTitles": [
       "ko:울산 중산동 고분군"
-    ]
+    ],
+    "photo": {
+      "url": "/images/places/attraction-b67e2eda56d3.jpg",
+      "page": "https://commons.wikimedia.org/wiki/File:%EC%9A%B8%EC%82%B0_%EC%A4%91%EC%82%B0%EB%8F%99_%EA%B3%A0%EB%B6%84%EA%B5%B02.jpg",
+      "credit": "국가유산청 / Wikimedia Commons",
+      "license": "KOGL Type 1",
+      "noAlter": false,
+      "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/6/6b/%EC%9A%B8%EC%82%B0_%EC%A4%91%EC%82%B0%EB%8F%99_%EA%B3%A0%EB%B6%84%EA%B5%B02.jpg"
+    }
   },
   "bangudae-petroglyphs": {
     "blogs": [
@@ -1092,11 +1122,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "source": "https://access.visitkorea.or.kr/ms/detail.do?cotId=c950c64e-821e-4946-ac69-8bb27bdb98cf"
     },
     "photo": {
-      "url": "https://gongu.copyright.or.kr/gongu/wrt/cmmn/wrtFileImageView.do?wrtSn=13304440&filePath=L2Rpc2sxL25ld2RhdGEvMjAyMi85OC9DTFMxMDAwNi9hZTM2Y2IxMy03MjQzLTRlMzYtOWQxZC1iODk2MTRjZmVmNTg=&thumbAt=Y&thumbSe=b_tbumb&wrtTy=10006",
+      "url": "/images/places/bangudae-petroglyphs.jpg",
       "page": "https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=13304440&menuNo=200023",
       "credit": "공유마당 / 강형원",
       "license": "기증저작물 자유이용 (공유마당)",
-      "noAlter": false
+      "noAlter": false,
+      "sourceUrl": "https://gongu.copyright.or.kr/gongu/wrt/cmmn/wrtFileImageView.do?wrtSn=13304440&filePath=L2Rpc2sxL25ld2RhdGEvMjAyMi85OC9DTFMxMDAwNi9hZTM2Y2IxMy03MjQzLTRlMzYtOWQxZC1iODk2MTRjZmVmNTg=&thumbAt=Y&thumbSe=b_tbumb&wrtTy=10006"
     }
   },
   "ganjeolgot": {
@@ -1139,11 +1170,12 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "source": "https://mom-mom.net/travel/places/6510d5e57b6f8db33b8dfbb6"
     },
     "photo": {
-      "url": "https://gongu.copyright.or.kr/gongu/wrt/cmmn/wrtFileImageView.do?wrtSn=13333632&filePath=L2Rpc2sxL25ld2RhdGEvMjAyMy8yMS9DTFMxMDAwNi9jMGQwN2YzYy0wNWIyLTRkMjEtYTQ2Ny1kODBmNzI4OTUzM2I=&thumbAt=Y&thumbSe=b_tbumb&wrtTy=10006",
+      "url": "/images/places/ganjeolgot.jpg",
       "page": "https://gongu.copyright.or.kr/gongu/wrt/wrt/view.do?wrtSn=13333632&menuNo=200023",
       "credit": "공유마당 / 여행작가이동근",
       "license": "CC BY 4.0",
-      "noAlter": false
+      "noAlter": false,
+      "sourceUrl": "https://gongu.copyright.or.kr/gongu/wrt/cmmn/wrtFileImageView.do?wrtSn=13333632&filePath=L2Rpc2sxL25ld2RhdGEvMjAyMy8yMS9DTFMxMDAwNi9jMGQwN2YzYy0wNWIyLTRkMjEtYTQ2Ny1kODBmNzI4OTUzM2I=&thumbAt=Y&thumbSe=b_tbumb&wrtTy=10006"
     }
   },
   "daewangam-park": {
@@ -1190,6 +1222,14 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "status": "partial",
       "note": "공원 산책로는 반려견 동반 가능, 출렁다리는 반려견 출입 불가",
       "source": "https://kkamiiii.com/entry/%EC%9A%B8%EC%82%B0-%EC%95%A0%EA%B2%AC%EB%8F%99%EB%B0%98%EC%97%AC%ED%96%89-%EA%B0%95%EC%95%84%EC%A7%80%EC%99%80-%EA%B0%80%EB%B3%BC%EB%A7%8C%ED%95%9C-%EA%B3%B3-TOP-3"
+    },
+    "photo": {
+      "url": "/images/places/daewangam-park.jpg",
+      "page": "https://commons.wikimedia.org/wiki/File:KU-Dwa2.jpg",
+      "credit": "Dittwjfsdgkvkdjg / Wikimedia Commons",
+      "license": "CC BY-SA 3.0",
+      "noAlter": false,
+      "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/7/74/KU-Dwa2.jpg"
     }
   },
   "attraction-6b36b1c5e3d8": {
@@ -1306,6 +1346,14 @@ export const PLACE_STORIES: Readonly<Record<string, PlaceStory>> = {
       "status": "partial",
       "note": "일부 구역 산책만 가능(목줄 필수), 장미원·동물원 등 시설은 동반 불가",
       "source": "https://info.koreacharts.com/tour/127644/contents.html"
+    },
+    "photo": {
+      "url": "/images/places/ulsan-grand-park.jpg",
+      "page": "https://commons.wikimedia.org/wiki/File:%EC%9A%B8%EC%82%B0%EB%8C%80%EA%B3%B5%EC%9B%90_%ED%98%84%EC%B6%A9%ED%83%91_20170524_161927.jpg",
+      "credit": "Dongchan0417 / Wikimedia Commons",
+      "license": "CC BY-SA 4.0",
+      "noAlter": false,
+      "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/c/c3/%EC%9A%B8%EC%82%B0%EB%8C%80%EA%B3%B5%EC%9B%90_%ED%98%84%EC%B6%A9%ED%83%91_20170524_161927.jpg"
     }
   }
 };

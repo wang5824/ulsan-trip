@@ -54,7 +54,7 @@ export default function PlaceCard({ recommendation, traveler, profile, quip }: P
 
   return (
     <article className="overflow-hidden rounded-[1.5rem] border border-line bg-card">
-      <PlacePhoto titles={story?.wikiTitles} licensed={story?.photo} alt={place.name} glyph={categoryGlyph[place.category]} glyphId={`photo-${place.id}`} />
+      <PlacePhoto key={place.id} photo={story?.photo} alt={place.name} glyph={categoryGlyph[place.category]} glyphId={`photo-${place.id}`} />
       <div className="p-5 sm:p-6">
         <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
           <span className={`rounded-full px-3 py-1 ${typeTone[place.type]}`}>{typeLabels[place.type]} · {categoryLabels[place.category]}</span>
