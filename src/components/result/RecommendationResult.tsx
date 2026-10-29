@@ -7,7 +7,7 @@ import Link from "next/link";
 import KakaoMap from "@/src/components/KakaoMap";
 import CourseTimeline from "@/src/components/result/CourseTimeline";
 import { createTravelCopy } from "@/src/lib/travel-copy";
-import { createSchedule, formatScheduleTime } from "@/src/lib/recommendation";
+import { createSchedule, formatScheduleTime, getScheduleNotices } from "@/src/lib/recommendation";
 import { DISTRICT_LABELS } from "@/src/types/travel";
 import PetroglyphGlyph from "@/src/components/petroglyph/PetroglyphGlyph";
 import { describeAxes, findPetroglyphType, getPetroglyphType } from "@/src/lib/petroglyph-type";
@@ -36,6 +36,8 @@ export default function RecommendationResult() {
   const travelerType = (typeResult && findPetroglyphType(typeResult.code)) || getPetroglyphType(profile);
   const totalStayMinutes = stops.reduce((sum, { place }) => sum + place.recommendedDuration, 0);
   const totalTravelMinutes = schedule.reduce((sum, stop) => sum + stop.travelMinutes, 0);
+  const totalWaitMinutes = schedule.reduce((sum, stop) => sum + stop.waitMinutes, 0);
+  const scheduleNotices = getScheduleNotices(profile, stops);
   const requiredNames = (profile.requiredPlaceIds ?? []).map(id => mapPlaces.find(place => place.id === id)?.name ?? id);
   const chips = [
     companionLabels[profile.companion].replace(/과$|와$/, ""),
@@ -76,7 +78,7 @@ export default function RecommendationResult() {
         <dl className="grid grid-cols-3 gap-2 sm:gap-4">
           {[
             ["방문", `${stops.length}곳`],
-            ["체류 + 이동", `약 ${totalStayMinutes + totalTravelMinutes}분`],
+            ["총 일정", `약 ${totalStayMinutes + totalTravelMinutes + totalWaitMinutes}분`],
             ["예상 종료", schedule.length > 0 ? formatScheduleTime(schedule[schedule.length - 1].departureMinutes) : "–"],
           ].map(([label, value]) => (
             <div key={label} className="rounded-2xl border border-line bg-card px-3 py-4 text-center sm:px-5">
@@ -91,9 +93,13 @@ export default function RecommendationResult() {
             <h2 id="timeline-heading" className="font-display text-2xl font-bold">추천 일정</h2>
             <p className="mb-7 mt-2 text-sm leading-7 text-ink-3">
               {schedule.length > 0
-                ? `체류 ${totalStayMinutes}분과 이동 약 ${totalTravelMinutes}분을 선택한 종료 시간 안에 맞췄어요.`
+                ? `체류 ${totalStayMinutes}분 · 이동 약 ${totalTravelMinutes}분${totalWaitMinutes > 0 ? ` · 식사 전 여유 ${totalWaitMinutes}분` : ""}을 포함한 일정이에요.`
                 : "선택한 지역과 시간에 맞는 관광지가 없습니다. 지역을 넓히거나 여행 시간을 늘려보세요."}
             </p>
+            {scheduleNotices.length > 0 && <ul className="mb-5 space-y-2 rounded-2xl bg-sand p-4 text-sm leading-6 text-ink-2">
+              {scheduleNotices.map(notice => <li key={notice}>{notice}</li>)}
+            </ul>}
+            {schedule.some(stop => stop.meal) && <p className="mb-5 text-xs leading-6 text-ink-3">점심 11:30–14:00 · 저녁 17:30–20:00 안에 식사하도록 배치했어요. 식당의 영업시간·브레이크타임·휴무는 방문 전 확인해주세요.</p>}
             <CourseTimeline stops={schedule} traveler={travelerType} profile={profile} />
           </section>
 

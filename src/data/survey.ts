@@ -19,7 +19,7 @@ export const surveyQuestions = [
   { id: "transport", title: "주로 어떻게 이동하시나요?", help: "이동수단에 따라 장소 사이 거리를 조절해요.", options: [
     { value: "car", label: "자가용" }, { value: "public-transit", label: "대중교통" },
   ] },
-  { id: "time", title: "몇 시부터 몇 시까지 여행할 수 있나요?", help: "같은 날의 시작·종료 시간을 선택해주세요. 한국 시각 기준입니다.", options: [] },
+  { id: "time", title: "몇 시부터 몇 시까지 여행할 수 있나요?", help: "같은 날의 한국 시각 기준이에요. 점심 11:30–14:00, 저녁 17:30–20:00 중 식사할 시간이 있는 구간에 식당을 추천해요.", options: [] },
   { id: "preferredFood", title: "어떤 음식을 가장 선호하시나요?", help: "코스 중간 식사 장소를 고를 때 반영해요.", options: [
     { value: "any", label: "상관없어요" }, { value: "korean", label: "한식" },
     { value: "seafood", label: "해산물" }, { value: "western", label: "양식" },

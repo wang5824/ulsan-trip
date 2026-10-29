@@ -1,5 +1,5 @@
 import { DISTRICT_LABELS } from "../types/travel";
-import { calculatePreferenceFit, getRequiredPlaceIssues } from "./recommendation";
+import { calculatePreferenceFit, getRequiredPlaceIssues, getMealWindows, getScheduleNotices, MEAL_WINDOWS } from "./recommendation";
 import { isQuestionAnswered, buildUserProfile } from "./survey";
 import type { SurveyAnswers } from "../data/survey";
 import assert from "node:assert/strict";
@@ -94,7 +94,7 @@ test("선별한 관광지는 위치·체류 정보와 모든 지역·관심사 �
   }
 });
 
-test("축소된 목록도 16유형·6지역·2이동수단·반일/종일 조합에서 일정을 만든다", async () => {
+test("16유형·6지역·2이동수단·반일/종일/저녁 조합에서 시간대와 이동을 지킨다", async () => {
   const { PETROGLYPH_TYPES } = await import("../data/petroglyph-types");
   const { TYPE_TEST_QUESTIONS } = await import("../data/type-test");
   const { scoreTypeTest } = await import("./type-test");
@@ -103,7 +103,7 @@ test("축소된 목록도 16유형·6지역·2이동수단·반일/종일 조합
     const { taste } = scoreTypeTest(answers)!;
     for (const region of ["all", "ulju", "buk", "dong", "jung", "nam"] as const) {
       for (const transport of ["car", "public-transit"] as const) {
-        for (const endTime of ["12:00", "18:00"] as const) {
+        for (const endTime of ["12:00", "18:00", "20:00"] as const) {
           const selected = { ...profile, ...taste, region, transport, endTime };
           const route = recommendPlacesWithBreakdown(selected, placeCatalog);
           const label = `${code}/${region}/${transport}/${endTime}`;
@@ -113,10 +113,116 @@ test("축소된 목록도 16유형·6지역·2이동수단·반일/종일 조합
           const schedule = createSchedule(selected, route);
           assert.equal(schedule.length, route.length, label);
           assert.ok(schedule.every(stop => stop.departureMinutes <= Number(endTime.slice(0, 2)) * 60), label);
+          const meals = schedule.filter(stop => stop.meal);
+          assert.equal(new Set(meals.map(stop => stop.meal)).size, meals.length, label);
+          for (const stop of meals) {
+            const window = MEAL_WINDOWS[stop.meal!];
+            assert.ok(stop.arrivalMinutes >= window.start && stop.departureMinutes <= window.end, label);
+          }
         }
       }
     }
   }
+});
+
+const mealCatalog = () => catalogOf([
+  ...Array.from({ length: 12 }, (_, i) => fixture({ id: `tour-${i}`, recommendedDuration: 60 })),
+  fixture({ id: "meal-a", type: "restaurant", category: "korean", recommendedDuration: 60 }),
+  fixture({ id: "meal-b", type: "restaurant", category: "korean", recommendedDuration: 60 }),
+]);
+
+test("종일 여행은 관광지가 시간을 다 쓰기 전에 점심·저녁을 각각 확보한다", () => {
+  const selected: UserProfile = { ...profile, endTime: "20:00" };
+  const result = recommendPlacesWithBreakdown(selected, mealCatalog());
+  const schedule = createSchedule(selected, result);
+  assert.deepEqual(schedule.filter(stop => stop.meal).map(stop => stop.meal), ["lunch", "dinner"]);
+  assert.equal(result.filter(stop => stop.place.type === "restaurant").length, 2);
+  assert.equal(new Set(result.map(stop => stop.place.id)).size, result.length);
+  assert.ok(result.filter(stop => stop.place.type === "attraction").length > 4);
+  assert.ok(schedule.reduce((sum, stop) => sum + stop.waitMinutes, 0) < 60);
+  assert.ok(schedule.every(stop => stop.departureMinutes <= 20 * 60));
+});
+
+for (const [startTime, endTime, expected] of [
+  ["08:00", "11:00", []],
+  ["09:00", "12:00", []],
+  ["12:00", "14:00", ["lunch"]],
+  ["13:00", "14:00", ["lunch"]],
+  ["13:01", "14:00", []],
+  ["14:00", "17:00", []],
+  ["15:00", "18:00", []],
+  ["15:00", "20:00", ["dinner"]],
+  ["18:00", "20:00", ["dinner"]],
+  ["20:00", "23:00", []],
+] as const) {
+  test(`${startTime}–${endTime}: 충분히 겹치는 식사 시간대만 추천한다`, () => {
+    const selected = { ...profile, startTime, endTime };
+    assert.deepEqual(getMealWindows(selected), expected);
+    const result = recommendPlacesWithBreakdown(selected, mealCatalog());
+    assert.deepEqual(createSchedule(selected, result).filter(stop => stop.meal).map(stop => stop.meal), expected);
+  });
+}
+
+test("점심에 시작하면 긴 관광지보다 식사를 먼저 배치한다", () => {
+  const selected: UserProfile = { ...profile, startTime: "12:00", endTime: "17:00" };
+  const catalog = catalogOf([
+    fixture({ id: "long-tour", recommendedDuration: 180 }),
+    fixture({ id: "lunch", type: "restaurant", recommendedDuration: 60 }),
+  ]);
+  const schedule = createSchedule(selected, recommendPlacesWithBreakdown(selected, catalog));
+  assert.equal(schedule[0].meal, "lunch");
+  assert.equal(schedule[0].arrivalMinutes, 12 * 60);
+  assert.equal(schedule[1].recommendation.place.id, "long-tour");
+});
+
+test("이동 때문에 식사가 시간대를 벗어나면 해당 끼니를 넣지 않는다", () => {
+  const selected: UserProfile = { ...profile, startTime: "12:30", endTime: "14:00", requiredPlaceIds: ["required"] };
+  const catalog = catalogOf([
+    fixture({ id: "required", recommendedDuration: 30 }),
+    fixture({ id: "food", type: "restaurant", recommendedDuration: 60, longitude: places[0].longitude! + 0.001 }),
+  ]);
+  const result = recommendPlacesWithBreakdown(selected, catalog);
+  assert.ok(result.every(stop => stop.place.type !== "restaurant"));
+  assert.ok(getScheduleNotices(selected, result).some(notice => notice.includes("점심 식사")));
+});
+
+test("필수 점심 식당이 있어도 저녁은 별도로 추천하고 두 필수 식당의 순서를 지킨다", () => {
+  const selected: UserProfile = { ...profile, endTime: "20:00", requiredPlaceIds: ["meal-a"] };
+  const result = recommendPlacesWithBreakdown(selected, mealCatalog());
+  assert.deepEqual(createSchedule(selected, result).filter(stop => stop.meal).map(stop => stop.meal), ["lunch", "dinner"]);
+  const two = { ...selected, requiredPlaceIds: ["meal-b", "meal-a"] };
+  assert.deepEqual(getRequiredPlaceIssues(two, mealCatalog()), []);
+  assert.deepEqual(recommendPlaces(two, mealCatalog()).filter(place => place.type === "restaurant").map(place => place.id), ["meal-b", "meal-a"]);
+  assert.ok(getRequiredPlaceIssues({ ...two, endTime: "14:00" }, mealCatalog()).some(issue => issue.includes("식사 시간대")));
+});
+
+test("음식점이 한 곳뿐이면 중복 방문시키지 않고 누락된 끼니를 알린다", () => {
+  const catalog = mealCatalog();
+  catalog.restaurants = catalog.restaurants.slice(0, 1);
+  const selected: UserProfile = { ...profile, endTime: "20:00" };
+  const result = recommendPlacesWithBreakdown(selected, catalog);
+  assert.equal(result.filter(stop => stop.place.type === "restaurant").length, 1);
+  assert.ok(getScheduleNotices(selected, result).some(notice => notice.includes("저녁 식사")));
+});
+
+test("후보가 부족하면 식사 전 대기와 코스 종료 후 남는 시간을 구분한다", () => {
+  const selected: UserProfile = { ...profile, endTime: "20:00" };
+  const catalog = catalogOf([
+    fixture({ id: "only-tour", recommendedDuration: 60 }),
+    fixture({ id: "lunch", type: "restaurant", recommendedDuration: 60 }),
+  ]);
+  const result = recommendPlacesWithBreakdown(selected, catalog);
+  const schedule = createSchedule(selected, result);
+  assert.ok(schedule.some(stop => stop.waitMinutes > 0));
+  assert.ok(getScheduleNotices(selected, result).some(notice => notice.includes("분이 남아요")));
+});
+
+test("북구 종일 코스는 새 관광지 주변으로 저녁을 옮겨 긴 대기를 줄인다", () => {
+  const selected: UserProfile = { ...profile, popularityPreference: "famous", region: "buk", endTime: "20:00" };
+  const schedule = createSchedule(selected, recommendPlacesWithBreakdown(selected, placeCatalog));
+  assert.deepEqual(schedule.filter(stop => stop.meal).map(stop => stop.meal), ["lunch", "dinner"]);
+  assert.ok(schedule.reduce((sum, stop) => sum + stop.waitMinutes, 0) < 60);
+  assert.ok(schedule.filter(stop => stop.recommendation.place.type === "attraction").length >= 4);
 });
 
 for (const transport of ["car", "public-transit", "walking"] as const) {
@@ -146,7 +252,7 @@ test("관광지 반경 이내라도 우회 상한을 넘는 음식점은 제외�
   const food = fixture({ id: "food", type: "restaurant", latitude: 35, longitude: 128.974 });
   assert.ok(distanceKm(a, food) < FOOD_DISTANCE_LIMITS.car.radius);
   assert.ok(2 * distanceKm(a, food) > FOOD_DISTANCE_LIMITS.car.detour);
-  assert.deepEqual(recommendPlaces(profile, catalogOf([a, b, food])).map(p => p.id), ["a", "b"]);
+  assert.deepEqual(recommendPlaces({ ...profile, requiredPlaceIds: ["a", "b"], endTime: "14:00" }, catalogOf([a, b, food])).map(p => p.id), ["a", "b"]);
 });
 
 test("식사·휴식은 가까운 관광지 뒤에 삽입하고 관광지 순서를 유지한다", () => {
@@ -164,10 +270,13 @@ test("식사·휴식은 가까운 관광지 뒤에 삽입하고 관광지 순서
   assert.ok(recommendPlaces({ ...profile, restFrequency: 3 }, catalog).every(p => p.type !== "cafe"));
 });
 
-test("여행 길이에 따라 관광지 개수 상한을 적용한다", () => {
-  const shortStays = catalogOf(placeCatalog.attractions.map(place => ({ ...place, recommendedDuration: 10 })));
-  assert.equal(recommendPlaces(profile, shortStays).filter(p => p.type === "attraction").length, 4);
-  assert.equal(recommendPlaces({ ...profile, endTime: "14:59" }, shortStays).filter(p => p.type === "attraction").length, 3);
+test("여행 시간을 늘리면 4곳 제한 없이 이동·체류가 가능한 관광지를 추가한다", () => {
+  const catalog = catalogOf(Array.from({ length: 12 }, (_, i) => fixture({ id: `stop-${i}`, recommendedDuration: 60 })));
+  const short = recommendPlaces({ ...profile, endTime: "12:00" }, catalog);
+  const long = recommendPlaces(profile, catalog);
+  assert.equal(short.length, 3);
+  assert.equal(long.length, 9);
+  assert.equal(createSchedule(profile, long.map(place => scorePlace(profile, place))).at(-1)?.departureMinutes, 18 * 60);
 });
 
 test("잘못된 음식점 좌표는 추천하지 않는다", () => {
@@ -250,7 +359,7 @@ for (const transport of ["car", "public-transit", "walking"] as const) {
     assert.equal(schedule[0].arrivalMinutes, 540);
     schedule.forEach((stop, index) => {
       assert.ok(stop.departureMinutes <= 1080);
-      if (index > 0) assert.equal(stop.arrivalMinutes, schedule[index - 1].departureMinutes + stop.travelMinutes);
+      if (index > 0) assert.equal(stop.arrivalMinutes, schedule[index - 1].departureMinutes + stop.travelMinutes + stop.waitMinutes);
     });
     assert.equal(recommendPlacesWithBreakdown(selected, placeCatalog).length, schedule.length);
   });
@@ -277,8 +386,8 @@ test("유명한 곳 선호는 첫 장소 이후에도 가까운 무명 장소보
   const near = fixture({ id: "near", popularityScore: 1, longitude: 129.001, recommendedDuration: 30 });
   const famous = fixture({ id: "famous", popularityScore: 5, longitude: 129.05, recommendedDuration: 30 });
   const catalog = catalogOf([a, near, famous]);
-  assert.deepEqual(recommendPlaces({ ...profile, popularityPreference: "famous" }, catalog).slice(0, 2).map(p => p.id), ["a", "famous"]);
-  assert.deepEqual(recommendPlaces(profile, catalog).slice(0, 2).map(p => p.id), ["a", "near"]);
+  assert.deepEqual(recommendPlaces({ ...profile, popularityPreference: "famous", endTime: "10:30" }, catalog).map(p => p.id), ["a", "famous"]);
+  assert.deepEqual(recommendPlaces({ ...profile, endTime: "10:30" }, catalog).map(p => p.id), ["a", "near"]);
 });
 
 test("희망 지역은 관광지와 음식점 및 카페에 모두 적용하며 지역 미확인은 제외한다", () => {
@@ -350,7 +459,7 @@ test("지역 충돌·좌표 누락·존재하지 않는 필수 장소·시간 �
   assert.match(getRequiredPlaceIssues({ ...profile, requiredPlaceIds: ["a", "b", "c"] }, catalog).join(), /최대 2곳/);
 });
 
-test("필수 음식점과 카페도 거리·휴식 취향보다 우선하며 동일 유형을 자동 추가하지 않는다", () => {
+test("필수 음식점과 카페의 상대 순서를 유지하고 같은 끼니·카페는 중복하지 않는다", () => {
   const food = fixture({ id: "food", type: "restaurant", recommendedDuration: 30 });
   const cafe = fixture({ id: "cafe", type: "cafe", recommendedDuration: 30 });
   const moreFood = fixture({ ...food, id: "more-food" });
@@ -358,7 +467,7 @@ test("필수 음식점과 카페도 거리·휴식 취향보다 우선하며 동
   const attraction = fixture({ id: "attraction", recommendedDuration: 30 });
   const selected = { ...profile, restFrequency: 1 as const, requiredPlaceIds: ["food", "cafe"] };
   const result = recommendPlaces(selected, catalogOf([food, cafe, moreFood, moreCafe, attraction]));
-  assert.deepEqual(result.slice(0, 2).map(p => p.id), ["food", "cafe"]);
+  assert.deepEqual(result.filter(p => selected.requiredPlaceIds.includes(p.id)).map(p => p.id), ["food", "cafe"]);
   assert.ok(result.some(p => p.id === "attraction"));
   assert.equal(result.filter(p => p.type === "restaurant").length, 1);
   assert.equal(result.filter(p => p.type === "cafe").length, 1);
@@ -411,7 +520,7 @@ test("다음 관광지는 조금 더 멀어도 취향에 잘 맞는 후보를 �
   const anchor = fixture({ id: "a", category: "nature", activityLevel: 2, recommendedDuration: 30 });
   const nearPoor = fixture({ id: "poor", category: "culture", activityLevel: 5, longitude: anchor.longitude! + 0.001, recommendedDuration: 30 });
   const better = fixture({ id: "better", category: "nature", activityLevel: 2, longitude: anchor.longitude! + 0.02, recommendedDuration: 30 });
-  const result = recommendPlaces({ ...profile, requiredPlaceIds: ["a"] }, catalogOf([anchor, nearPoor, better]));
+  const result = recommendPlaces({ ...profile, requiredPlaceIds: ["a"], endTime: "10:30" }, catalogOf([anchor, nearPoor, better]));
   assert.deepEqual(result.slice(0, 2).map(place => place.id), ["a", "better"]);
 });
 

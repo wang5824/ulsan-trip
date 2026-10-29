@@ -1,4 +1,4 @@
-import { formatScheduleTime, type ScheduledStop } from "../../lib/recommendation";
+import { formatScheduleTime, MEAL_WINDOWS, type ScheduledStop } from "../../lib/recommendation";
 import type { PetroglyphType } from "../../data/petroglyph-types";
 import type { UserProfile } from "../../types/travel";
 import PlaceCard from "./PlaceCard";
@@ -19,12 +19,14 @@ export default function CourseTimeline({ stops, traveler, profile }: { stops: re
 
   return (
     <ol className="space-y-5">
-      {stops.map(({ recommendation, travelMinutes, arrivalMinutes, departureMinutes }, index) => (
+      {stops.map(({ recommendation, travelMinutes, arrivalMinutes, departureMinutes, waitMinutes, meal }, index) => (
         <li key={recommendation.place.id} className="relative grid grid-cols-[2.5rem_minmax(0,1fr)] gap-3 sm:gap-4">
           {index < stops.length - 1 && <div aria-hidden="true" className="absolute bottom-[-1.25rem] left-5 top-11 border-l-2 border-dashed border-line" />}
           <span aria-label={`${index + 1}번째 방문`} className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-rock font-display text-base font-bold tabular-nums text-ochre-tint ring-4 ring-paper">{index + 1}</span>
           <div className="min-w-0">
+            {waitMinutes > 0 && <p className="mb-2 rounded-xl bg-sand px-3 py-2 text-xs leading-5 text-ink-2">이동 후 식사 전 여유 시간 {waitMinutes}분 · 주변에서 쉬어가세요.</p>}
             <p className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 pt-2 text-sm">
+              {meal && <span className="rounded-full bg-ochre-tint px-2.5 py-1 text-xs font-bold text-ochre-2">{MEAL_WINDOWS[meal].label}</span>}
               <span className="font-display font-bold tabular-nums text-ink">{formatScheduleTime(arrivalMinutes)} – {formatScheduleTime(departureMinutes)}</span>
               <span className="text-xs text-ink-3">체류 {recommendation.place.recommendedDuration}분{index > 0 ? ` · 이동 약 ${travelMinutes}분` : ""}</span>
             </p>

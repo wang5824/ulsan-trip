@@ -16,14 +16,26 @@ export const RECOMMENDATION_WEIGHTS = {
 } as const;
 
 export const RECOMMENDATION_RULES = {
-  attractionCount: 3,
-  extendedAttractionCount: 4,
-  extendedTripMinutes: 360,
-  restaurantCount: 1,
-  cafeCount: 1,
   cafeRestThreshold: 4,
+  mealMinutes: 60,
   neutralMatch: 0.5,
 } as const;
+
+/** 계획용 식사 시간대입니다. 개별 식당의 영업시간을 뜻하지 않습니다. */
+export const MEAL_WINDOWS = {
+  lunch: { label: "점심 식사", start: 11 * 60 + 30, end: 14 * 60 },
+  dinner: { label: "저녁 식사", start: 17 * 60 + 30, end: 20 * 60 },
+} as const;
+export type MealKind = keyof typeof MEAL_WINDOWS;
+
+/** 여행 시간과 식사 시간대가 최소 한 끼(60분) 이상 겹치는 경우에만 자동 추천합니다. */
+export function getMealWindows(profile: UserProfile): MealKind[] {
+  return (Object.keys(MEAL_WINDOWS) as MealKind[]).filter(meal => {
+    const window = MEAL_WINDOWS[meal];
+    return Math.min(minutes(profile.endTime), window.end) - Math.max(minutes(profile.startTime), window.start)
+      >= RECOMMENDATION_RULES.mealMinutes;
+  });
+}
 
 export interface ScoreDetail {
   /** 가중치를 적용하기 전의 일치도(0~1). */
@@ -42,6 +54,8 @@ export interface ScoredPlace {
   breakdown: ScoreBreakdown;
   /** 휠체어·반려동물 조건에서 확인된 장소를 앞세우는 선정 가점(화면 점수에는 포함하지 않음). */
   accessBonus?: number;
+  /** 자동 추천한 식사는 이 시간대를 지킵니다. 필수 음식점은 일정에서 시간대를 배정합니다. */
+  meal?: MealKind;
 }
 
 /** 화면용 취향 적합도. 유명도·관광두레는 제외하며 만족 확률을 뜻하지 않습니다. */
@@ -210,17 +224,29 @@ export interface ScheduledStop {
   travelMinutes: number;
   arrivalMinutes: number;
   departureMinutes: number;
+  /** 식사 시간까지의 여유 시간. 이동·체류 시간과 별도로 표시합니다. */
+  waitMinutes: number;
+  meal?: MealKind;
 }
 
 export function createSchedule(profile: UserProfile, stops: readonly ScoredPlace[]): ScheduledStop[] {
   let cursor = minutes(profile.startTime);
+  const meals = getMealWindows(profile);
+  const usedMeals = new Set<MealKind>();
   const routableStops = stops.filter(({ place }) => hasCoordinates(place)
     && Number.isFinite(place.recommendedDuration) && place.recommendedDuration > 0);
   return routableStops.map((recommendation, index) => {
     const travelMinutes = index === 0 ? 0 : estimateTravelMinutes(routableStops[index - 1].place, recommendation.place, profile.transport);
-    const arrivalMinutes = cursor + travelMinutes;
+    const reachedAt = cursor + travelMinutes;
+    const meal = recommendation.place.type === "restaurant"
+      ? recommendation.meal ?? meals.find(kind => !usedMeals.has(kind)
+        && Math.max(reachedAt, MEAL_WINDOWS[kind].start) + recommendation.place.recommendedDuration
+          <= Math.min(MEAL_WINDOWS[kind].end, minutes(profile.endTime)))
+      : undefined;
+    if (meal) usedMeals.add(meal);
+    const arrivalMinutes = meal ? Math.max(reachedAt, MEAL_WINDOWS[meal].start) : reachedAt;
     cursor = arrivalMinutes + recommendation.place.recommendedDuration;
-    return { recommendation, travelMinutes, arrivalMinutes, departureMinutes: cursor };
+    return { recommendation, travelMinutes, arrivalMinutes, departureMinutes: cursor, waitMinutes: arrivalMinutes - reachedAt, meal };
   });
 }
 
@@ -230,7 +256,16 @@ export function formatScheduleTime(value: number): string {
 
 function fitsSchedule(profile: UserProfile, route: readonly ScoredPlace[]): boolean {
   const schedule = createSchedule(profile, route);
-  return schedule.length === 0 || schedule[schedule.length - 1].departureMinutes <= minutes(profile.endTime);
+  if (schedule.length !== route.length) return false;
+  const usedMeals = new Set<MealKind>();
+  return schedule.every(stop => {
+    if (stop.departureMinutes > minutes(profile.endTime)) return false;
+    if (!stop.meal) return stop.recommendation.place.type !== "restaurant" || getMealWindows(profile).length === 0;
+    const window = MEAL_WINDOWS[stop.meal];
+    if (usedMeals.has(stop.meal) || stop.arrivalMinutes < window.start || stop.departureMinutes > window.end) return false;
+    usedMeals.add(stop.meal);
+    return true;
+  });
 }
 
 /** 필수 장소가 조건에 맞지 않으면 일부만 누락하지 않고 조정할 내용을 안내합니다. */
@@ -253,7 +288,7 @@ export function getRequiredPlaceIssues(profile: UserProfile, catalog: PlaceCatal
     required.push(scorePlace(profile, place));
   }
   if (required.length && !fitsSchedule(profile, required)) {
-    issues.push("필수 장소의 체류·이동 시간이 여행 시간을 초과합니다. 여행 시간을 늘리거나 필수 장소를 줄여주세요.");
+    issues.push("필수 장소의 체류·이동 또는 식사 대기 시간이 여행 시간을 초과하거나 식사 시간대와 맞지 않습니다. 여행 시간이나 필수 장소의 순서·선택을 조정해주세요.");
   }
   return issues;
 }
@@ -265,66 +300,151 @@ export const FOOD_DISTANCE_LIMITS = {
   walking: { radius: 0.6, detour: 0.8 },
 } as const;
 
-/**
- * 관광지를 먼저 선정하고 가까운 순서로 연결한 뒤 식사·휴식을 삽입합니다.
- * 반환 순서는 화면과 지도에 사용할 방문 순서입니다. 후보가 없으면 생략합니다.
- * 체류·예상 이동시간을 여행 시간 안에 배정합니다. 실제 경로와 영업시간은 검증하지 않습니다.
- */
+/** 후보를 한 위치에 넣을 때 늘어나는 직선 이동 거리입니다. */
+function insertionDetour(route: readonly ScoredPlace[], candidate: ScoredPlace, index: number): number {
+  const previous = route[index - 1]?.place;
+  const next = route[index]?.place;
+  if (previous && next) return Math.max(0, distanceKm(previous, candidate.place) + distanceKm(candidate.place, next) - distanceKm(previous, next));
+  if (previous || next) return distanceKm((previous ?? next)!, candidate.place);
+  return 0;
+}
+
+/** 관광지를 추가한 뒤에도 음식점·카페 때문에 먼 우회를 만들지 않습니다. */
+function fitsFoodDistances(profile: UserProfile, route: readonly ScoredPlace[]): boolean {
+  const attractions = route.filter(({ place }) => place.type === "attraction");
+  const limits = FOOD_DISTANCE_LIMITS[profile.transport];
+  return route.every((stop, index) => {
+    if (stop.place.type === "attraction" || profile.requiredPlaceIds?.includes(stop.place.id)) return true;
+    if (!attractions.some(({ place }) => distanceKm(place, stop.place) <= limits.radius)) return false;
+    const without = route.filter((_, i) => i !== index);
+    return insertionDetour(without, stop, index) <= limits.detour;
+  });
+}
+
+interface Insertion {
+  route: ScoredPlace[];
+  priority: number;
+  detour: number;
+  index: number;
+  candidate: ScoredPlace;
+}
+
+/** 식사 시간을 확보한 뒤 빈 구간과 끝부분을 관광지로 채웁니다. 방문 개수는 제한하지 않습니다. */
 export function recommendPlacesWithBreakdown(profile: UserProfile, catalog: PlaceCatalog): ScoredPlace[] {
   const duration = minutes(profile.endTime) - minutes(profile.startTime);
-  if (!Number.isFinite(duration) || duration <= 0) return [];
-  const count = duration >= RECOMMENDATION_RULES.extendedTripMinutes
-    ? RECOMMENDATION_RULES.extendedAttractionCount : RECOMMENDATION_RULES.attractionCount;
-  if (getRequiredPlaceIssues(profile, catalog).length) return [];
-  const requiredIds = new Set(profile.requiredPlaceIds ?? []);
+  if (!Number.isFinite(duration) || duration <= 0 || getRequiredPlaceIssues(profile, catalog).length) return [];
   const allPlaces = [...catalog.attractions, ...catalog.restaurants, ...catalog.cafes];
-  const route: ScoredPlace[] = (profile.requiredPlaceIds ?? []).map(id => scorePlace(profile, allPlaces.find(place => place.id === id)!));
-  const remaining = rankPlaces(profile, catalog.attractions.filter(place => hasCoordinates(place) && !requiredIds.has(place.id)));
-  while (remaining.length && route.filter(({ place }) => place.type === "attraction").length < count) {
-    const previous = route[route.length - 1];
-    if (previous) remaining.sort((a, b) => {
-      const distanceA = distanceKm(previous.place, a.place);
-      const distanceB = distanceKm(previous.place, b.place);
-      const penalty = profile.transport === "car" ? 0.3 : profile.transport === "public-transit" ? 1 : 3;
-      return (selectionScore(b) - distanceB * penalty) - (selectionScore(a) - distanceA * penalty) || compareScores(a, b);
-    });
-    const candidate = remaining.shift()!;
-    if (Number.isFinite(distanceKm(candidate.place, candidate.place))
-      && Number.isFinite(candidate.place.recommendedDuration) && candidate.place.recommendedDuration > 0
-      && fitsSchedule(profile, [...route, candidate])) route.push(candidate);
-  }
-  const attractions = route.filter(({ place }) => place.type === "attraction");
-  if (!route.length) return [];
+  let route: ScoredPlace[] = (profile.requiredPlaceIds ?? []).map(id => scorePlace(profile, allPlaces.find(place => place.id === id)!));
+  const valid = (place: Place) => hasCoordinates(place) && Number.isFinite(place.recommendedDuration) && place.recommendedDuration > 0;
+  const attractions = rankPlaces(profile, catalog.attractions.filter(valid));
+  const restaurants = rankPlaces(profile, catalog.restaurants.filter(valid));
+  const cafes = rankPlaces(profile, catalog.cafes.filter(valid));
+  const meals = getMealWindows(profile);
   const limits = FOOD_DISTANCE_LIMITS[profile.transport];
-  const used = new Set(route.map(({ place }) => place.id));
-  const insertNearby = (candidates: readonly Place[]) => {
-    const options = rankPlaces(profile, candidates.filter(hasCoordinates)).flatMap((candidate) => {
-      if (used.has(candidate.place.id)) return [];
-      const nearest = Math.min(...attractions.map(({ place }) => distanceKm(place, candidate.place)));
-      if (nearest > limits.radius) return [];
-      // 첫 관광지 방문 후부터 삽입합니다. 마지막 위치는 편도 이동으로 계산합니다.
-      return route.flatMap((stop, index) => {
-        const next = route[index + 1];
-        const detour = next
-          ? Math.max(0, distanceKm(stop.place, candidate.place) + distanceKm(candidate.place, next.place) - distanceKm(stop.place, next.place))
-          : distanceKm(stop.place, candidate.place);
-        if (!Number.isFinite(detour) || detour > limits.detour) return [];
+  const distancePenalty = profile.transport === "car" ? 0.3 : profile.transport === "public-transit" ? 1 : 3;
+
+  // 이동 시작점이 되는 첫 관광지를 정합니다. 이후에는 이 장소의 앞뒤 식사와 빈 시간을 함께 계산합니다.
+  if (!route.length) {
+    const first = attractions.find(candidate => fitsSchedule(profile, [candidate]));
+    if (!first) return [];
+    route = [first];
+    // 식사 시간에 출발하면 한 시간짜리 짧은 여행도 관광지가 식사 시간을 먼저 쓰지 않게 합니다.
+    const startingMeal = meals.find(meal => minutes(profile.startTime) >= MEAL_WINDOWS[meal].start
+      && minutes(profile.startTime) < MEAL_WINDOWS[meal].end);
+    if (startingMeal) {
+      const restaurant = restaurants.find(candidate => distanceKm(first.place, candidate.place) <= limits.radius
+        && fitsSchedule(profile, [{ ...candidate, meal: startingMeal }]));
+      if (restaurant) route = [{ ...restaurant, meal: startingMeal }];
+    }
+  }
+
+  const bestInsertion = (candidates: readonly ScoredPlace[], preferLessWaiting = false): Insertion | undefined => {
+    const used = new Set(route.map(({ place }) => place.id));
+    const baseWait = createSchedule(profile, route).reduce((sum, stop) => sum + stop.waitMinutes, 0);
+    let best: Insertion | undefined;
+    for (const candidate of candidates) {
+      if (used.has(candidate.place.id)) continue;
+      const isAttraction = candidate.place.type === "attraction";
+      if (!isAttraction && !route.some(({ place }) => place.type === "attraction" && distanceKm(place, candidate.place) <= limits.radius)) continue;
+      for (let index = 0; index <= route.length; index++) {
+        // 첫 관광지는 출발 기준점으로 유지합니다. 식당으로 시작한다면 그 전 여유 시간도 관광에 쓸 수 있습니다.
+        if (index === 0 && isAttraction && route[0].place.type === "attraction") continue;
+        if (index === 0 && candidate.place.type === "cafe") continue;
+        const detour = insertionDetour(route, candidate, index);
+        if (!Number.isFinite(detour) || (!isAttraction && detour > limits.detour)) continue;
         const proposed = [...route];
-        proposed.splice(index + 1, 0, candidate);
-        if (!fitsSchedule(profile, proposed)) return [];
-        return [{ candidate, index, detour, priority: selectionScore(candidate) - 20 * detour / limits.detour }];
-      });
-    });
-    options.sort((a, b) => b.priority - a.priority || a.detour - b.detour || compareScores(a.candidate, b.candidate) || a.index - b.index);
-    const best = options[0];
-    if (best) {
-      route.splice(best.index + 1, 0, best.candidate);
-      used.add(best.candidate.place.id);
+        proposed.splice(index, 0, candidate);
+        if (!fitsSchedule(profile, proposed) || !fitsFoodDistances(profile, proposed)) continue;
+        const waiting = createSchedule(profile, proposed).reduce((sum, stop) => sum + stop.waitMinutes, 0);
+        // 같은 취향·동선이면 식사 전 빈 시간을 먼저 활용합니다.
+        const priority = selectionScore(candidate) - detour * (isAttraction ? distancePenalty : 20 / limits.detour)
+          + (baseWait - waiting) * (preferLessWaiting ? 1 : 0.05);
+        const option = { route: proposed, priority, detour, index, candidate };
+        if (!best || priority > best.priority || (priority === best.priority
+          && (detour < best.detour || (detour === best.detour
+            && (compareScores(candidate, best.candidate) < 0 || (candidate.place.id === best.candidate.place.id && index < best.index)))))) best = option;
+      }
+    }
+    return best;
+  };
+
+  const insertMealsAndRest = () => {
+    for (const meal of meals) {
+      if (createSchedule(profile, route).some(stop => stop.meal === meal)) continue;
+      const best = bestInsertion(restaurants.map(candidate => ({ ...candidate, meal })));
+      if (best) route = best.route;
+    }
+    if (profile.restFrequency >= RECOMMENDATION_RULES.cafeRestThreshold && !route.some(({ place }) => place.type === "cafe")) {
+      const best = bestInsertion(cafes);
+      if (best) route = best.route;
     }
   };
-  if (!route.some(({ place }) => place.type === "restaurant")) insertNearby(catalog.restaurants);
-  if (!route.some(({ place }) => place.type === "cafe") && profile.restFrequency >= RECOMMENDATION_RULES.cafeRestThreshold) insertNearby(catalog.cafes);
+
+  const reduceMealWaiting = () => {
+    // 나중에 더해진 관광지 쪽으로 식당을 옮길 수 있으면, 처음 고른 식당으로 되돌아가며 기다리지 않습니다.
+    for (const meal of meals) {
+      const index = route.findIndex(stop => stop.meal === meal && !profile.requiredPlaceIds?.includes(stop.place.id));
+      if (index < 0) continue;
+      const original = route;
+      const originalSchedule = createSchedule(profile, original);
+      const originalWait = originalSchedule.reduce((sum, stop) => sum + stop.waitMinutes, 0);
+      if (originalWait === 0) continue;
+      route = route.filter((_, i) => i !== index);
+      const best = bestInsertion(restaurants.map(candidate => ({ ...candidate, meal })), true);
+      if (best) {
+        const schedule = createSchedule(profile, best.route);
+        const waiting = schedule.reduce((sum, stop) => sum + stop.waitMinutes, 0);
+        if (waiting < originalWait && schedule[schedule.length - 1].departureMinutes <= originalSchedule[originalSchedule.length - 1].departureMinutes) {
+          route = best.route;
+          continue;
+        }
+      }
+      route = original;
+    }
+  };
+
+  // 식사·휴식 시간을 관광지가 먼저 소진하지 않도록 확보하고, 새 관광지 주변에서도 누락된 식사를 다시 찾습니다.
+  insertMealsAndRest();
+  while (true) {
+    const best = bestInsertion(attractions);
+    if (!best) break;
+    route = best.route;
+    reduceMealWaiting();
+    insertMealsAndRest();
+  }
   return route;
+}
+
+/** 부족한 후보·남는 시간을 숨기지 않고 결과 화면에 설명합니다. */
+export function getScheduleNotices(profile: UserProfile, stops: readonly ScoredPlace[]): string[] {
+  const schedule = createSchedule(profile, stops);
+  if (!schedule.length) return [];
+  const notices = getMealWindows(profile)
+    .filter(meal => !schedule.some(stop => stop.meal === meal))
+    .map(meal => `${MEAL_WINDOWS[meal].label} 시간대와 동선에 맞는 음식점을 찾지 못했어요. 식사 장소를 따로 확인해주세요.`);
+  const remaining = minutes(profile.endTime) - schedule[schedule.length - 1].departureMinutes;
+  if (remaining >= 30) notices.push(`조건에 맞는 장소를 추가하기 어려워 종료 시간까지 ${remaining}분이 남아요. 자유 시간으로 활용하거나 지역·이동수단을 바꿔보세요.`);
+  return notices;
 }
 
 export function recommendPlaces(profile: UserProfile, catalog: PlaceCatalog): Place[] {

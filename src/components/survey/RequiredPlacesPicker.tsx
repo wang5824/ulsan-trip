@@ -24,7 +24,7 @@ export default function RequiredPlacesPicker({ selectedIds, region, onChange, on
 
   return <div className="space-y-5">
     <div aria-live="polite" className="rounded-2xl bg-paper p-4">
-      <p className="text-sm font-semibold text-ink-2">선택한 장소 <span className="tabular-nums text-sea">{selectedIds.length}/2</span> · 선택한 순서대로 먼저 방문해요</p>
+      <p className="text-sm font-semibold text-ink-2">선택한 장소 <span className="tabular-nums text-sea">{selectedIds.length}/2</span> · 선택한 순서를 유지하며 식사와 관광을 배치해요</p>
       {selected.length > 0 ? <ul className="mt-3 flex flex-wrap gap-2">
         {selected.map((place, index) => <li key={place.id} className="flex items-center gap-1 rounded-full bg-sea py-1 pl-3 pr-1 text-sm text-white">
           <span className="font-semibold">{index + 1}. {place.name}</span>
