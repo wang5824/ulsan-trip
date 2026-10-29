@@ -1,20 +1,15 @@
 import { calculatePreferenceFit, type ScoredPlace } from "../../lib/recommendation";
-import { DISTRICT_LABELS, type PlaceCategory, type PlaceType, type UserProfile } from "../../types/travel";
+import { DISTRICT_LABELS, type PlaceType, type UserProfile } from "../../types/travel";
 import { PLACE_CATEGORY_LABELS as categoryLabels } from "../../lib/place-categories";
 import { getPlaceStory } from "../../data/place-stories";
 import { petVerdict, wheelchairVerdict, type AccessVerdict } from "../../lib/access";
-import type { PetroglyphType, GlyphKey } from "../../data/petroglyph-types";
+import type { PetroglyphType } from "../../data/petroglyph-types";
 import PetroglyphGlyph from "../petroglyph/PetroglyphGlyph";
 import PlacePhoto from "./PlacePhoto";
 
 const typeLabels: Record<PlaceType, string> = { attraction: "관광지", restaurant: "음식점", cafe: "카페" };
 const typeTone: Record<PlaceType, string> = {
   attraction: "bg-sea text-white", restaurant: "bg-ochre text-white", cafe: "bg-ink text-paper",
-};
-const categoryGlyph: Record<PlaceCategory, GlyphKey> = {
-  nature: "deer", sea: "whaleCalf", culture: "circles", experience: "hunter",
-  korean: "boar", seafood: "seal", western: "boar", chinese: "boar", japanese: "seal",
-  "fast-food": "boar", "other-food": "boar", cafe: "turtle",
 };
 const verdictText: Record<AccessVerdict, string> = { yes: "가능", partial: "일부 가능", no: "어려움", unknown: "미확인" };
 const verdictTone: Record<AccessVerdict, string> = {
@@ -54,7 +49,7 @@ export default function PlaceCard({ recommendation, traveler, profile, quip }: P
 
   return (
     <article className="overflow-hidden rounded-[1.5rem] border border-line bg-card">
-      <PlacePhoto key={place.id} placeId={place.id} photo={story?.photo} alt={place.name} glyph={categoryGlyph[place.category]} glyphId={`photo-${place.id}`} />
+      <PlacePhoto key={place.id} placeId={place.id} photo={story?.photo} alt={place.name} />
       <div className="p-5 sm:p-6">
         <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
           <span className={`rounded-full px-3 py-1 ${typeTone[place.type]}`}>{typeLabels[place.type]} · {categoryLabels[place.category]}</span>

@@ -65,8 +65,8 @@ test("빈 데이터, 후보 부족, 잘못된 시간, 정보 없는 관심사를
 });
 
 
-test("유형별 데이터가 모두 보존되고 ID가 중복되지 않는다", () => {
-  assert.equal(placeCatalog.attractions.length, 211);
+test("관광지는 주요 명소로 줄이고 음식점·카페 및 고유 ID를 유지한다", () => {
+  assert.equal(placeCatalog.attractions.length, 38);
   assert.equal(placeCatalog.restaurants.length, 238);
   assert.equal(placeCatalog.cafes.length, 82);
   assert.equal(new Set(places.map(p => p.id)).size, places.length);
@@ -74,6 +74,48 @@ test("유형별 데이터가 모두 보존되고 ID가 중복되지 않는다", 
     "jangsaengpo-whale-village", "onggi-village", "ulsan-grand-park", "bangudae-petroglyphs",
     "hamyangjip-main", "eonyang-giwajip-bulgogi", "mijin-dol-gopchang", "nongdo-cafe"]) {
     assert.ok(places.some(place => place.id === id), `${id} 보존`);
+  }
+});
+
+test("선별한 관광지는 위치·체류 정보와 모든 지역·관심사 선택지를 갖춘다", () => {
+  for (const place of placeCatalog.attractions) {
+    assert.ok(hasCoordinates(place), place.name);
+    assert.ok(place.district, place.name);
+    assert.ok(Number.isFinite(place.recommendedDuration) && place.recommendedDuration > 0, place.name);
+  }
+  for (const region of Object.keys(DISTRICT_LABELS)) {
+    assert.ok(placeCatalog.attractions.filter(p => p.district === region).length >= 4, region);
+  }
+  for (const category of ["nature", "sea", "culture", "experience"]) {
+    assert.ok(placeCatalog.attractions.some(p => p.category === category), category);
+  }
+  for (const id of ["attraction-6b36b1c5e3d8", "attraction-b720abadbfc4", "attraction-d43674289da2"]) {
+    assert.ok(!placeCatalog.attractions.some(p => p.id === id), "공원 내부 중복 지점 제외");
+  }
+});
+
+test("축소된 목록도 16유형·6지역·2이동수단·반일/종일 조합에서 일정을 만든다", async () => {
+  const { PETROGLYPH_TYPES } = await import("../data/petroglyph-types");
+  const { TYPE_TEST_QUESTIONS } = await import("../data/type-test");
+  const { scoreTypeTest } = await import("./type-test");
+  for (const { code } of PETROGLYPH_TYPES) {
+    const answers = TYPE_TEST_QUESTIONS.map(q => q.options.find(o => o.letter === code[q.axis])!.letter);
+    const { taste } = scoreTypeTest(answers)!;
+    for (const region of ["all", "ulju", "buk", "dong", "jung", "nam"] as const) {
+      for (const transport of ["car", "public-transit"] as const) {
+        for (const endTime of ["12:00", "18:00"] as const) {
+          const selected = { ...profile, ...taste, region, transport, endTime };
+          const route = recommendPlacesWithBreakdown(selected, placeCatalog);
+          const label = `${code}/${region}/${transport}/${endTime}`;
+          assert.ok(route.some(({ place }) => place.type === "attraction"), label);
+          assert.equal(new Set(route.map(({ place }) => place.id)).size, route.length, label);
+          assert.ok(route.every(({ place }) => region === "all" || place.district === region), label);
+          const schedule = createSchedule(selected, route);
+          assert.equal(schedule.length, route.length, label);
+          assert.ok(schedule.every(stop => stop.departureMinutes <= Number(endTime.slice(0, 2)) * 60), label);
+        }
+      }
+    }
   }
 });
 
