@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:recommendation": "node scripts/test-recommendation.mjs",
+    "test:analytics": "node scripts/test-analytics.mjs",
     "test:photos": "node scripts/test-tourapi.mjs"
   },
   "dependencies": {

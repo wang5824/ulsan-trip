@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import PetroglyphGlyph from "../petroglyph/PetroglyphGlyph";
 import { TYPE_TEST_QUESTIONS } from "../../data/type-test";
 import { scoreTypeTest } from "../../lib/type-test";
+import { trackTypeTestCompletion } from "../../lib/type-test-analytics";
 import { useTravel } from "../TravelProvider";
 import { focusRing } from "../ui";
 
@@ -19,6 +20,7 @@ export default function TypeTest() {
   const router = useRouter();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completionTracked = useRef(false);
   const question = TYPE_TEST_QUESTIONS[step];
 
   useEffect(() => { headingRef.current?.focus({ preventScroll: true }); }, [step]);
@@ -41,6 +43,10 @@ export default function TypeTest() {
         return;
       }
       completeTypeTest(result);
+      if (!completionTracked.current) {
+        completionTracked.current = true;
+        void trackTypeTestCompletion();
+      }
       startTransition(() => router.push(`/type/${result.code}`));
     }, ADVANCE_DELAY_MS);
   }

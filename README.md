@@ -2,7 +2,7 @@
 
 두 단계 설문으로 울산 여행 코스를 추천하는 웹 서비스입니다. 1단계 **암각화 여행자 유형검사**(상황 질문 12개)로 반구천의 암각화 모티프 16유형 중 나의 유형과 여행 취향을 정하고, 2단계 **코스 설계**(6개 질문)에서 동행·지역·이동수단·시간을 더해 관광지와 주변 음식점·카페를 방문 순서대로 추천합니다.
 
-현재 저장소의 정적 장소 데이터와 규칙 기반 점수 계산으로 동작합니다. 별도의 데이터베이스 서버나 생성형 AI API는 사용하지 않습니다.
+현재 저장소의 정적 장소 데이터와 규칙 기반 점수 계산으로 동작합니다. 여행 추천에는 별도의 데이터베이스 서버나 생성형 AI API를 사용하지 않습니다. 선택적으로 연결하는 Upstash Redis는 내부 검사 완료 통계에만 사용합니다.
 
 ## 주요 기능과 화면 흐름
 
@@ -73,6 +73,36 @@ npm run start
 ```
 
 지도 키는 빌드 전에 설정합니다. 현재 레이아웃은 `next/font/google`로 Gowun Batang·IBM Plex Sans KR 글꼴을 사용하므로 빌드 환경에서 글꼴 다운로드에 필요한 네트워크 접근이 필요할 수 있습니다.
+
+## 내부 검사 완료 통계
+
+외부 화면에는 통계를 표시하지 않습니다. 12문항을 모두 답한 순간에만 `/api/type-test-completions`로 익명 이벤트를 보냅니다. 결과 페이지 새로고침, 공유 링크 방문, 검사 중 이탈은 집계하지 않습니다. 공개 통계 조회 API나 관리자 페이지도 제공하지 않습니다.
+
+- **검사 완료 인원**: 브라우저 `localStorage`에 보관하는 무작위 ID 기준으로 중복을 제외합니다. 같은 브라우저에서 재검사하면 인원은 늘지 않습니다.
+- **검사 완료 횟수**: 재검사를 포함합니다. 동일 이벤트의 네트워크 재전송은 중복 집계하지 않습니다.
+- 서버에 저장하는 값은 무작위 방문자 ID와 완료 이벤트 ID뿐입니다. 답변·검사 결과·이름·IP는 집계 코드에서 저장하지 않습니다.
+- 기기·브라우저 변경, 저장소 삭제·차단, 시크릿 모드에서는 동일인을 구분할 수 없습니다. 로그인 기반의 정확한 실인원은 아닙니다. 오프라인이나 네트워크 차단 때는 누락될 수 있으며, 수집 API는 사람의 실제 검사 완료를 인증하지 않으므로 자동화 요청을 완전히 배제하지는 않습니다.
+
+### Vercel에서 활성화
+
+1. Vercel 프로젝트의 **Storage / Marketplace**에서 **Upstash Redis**를 생성하거나 기존 저장소를 연결합니다. 운영 통계를 유지할 저장소이므로 만료·자동 데이터 축출(eviction)을 사용하지 않습니다.
+2. 프로젝트의 **Production** 환경 변수에 `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`이 연결되어 있는지 확인합니다. 통합이 생성하는 `KV_REST_API_URL`, `KV_REST_API_TOKEN`도 지원합니다. 토큰에는 쓰기 권한이 필요하며, 두 변수에 `NEXT_PUBLIC_` 접두사를 붙이지 않습니다.
+3. 이 코드를 포함해 **다시 배포**합니다. `VERCEL_ENV=production`에서 집계가 자동으로 활성화됩니다. 저장소가 미설정이거나 장애가 나더라도 검사 결과는 정상 표시하고, Vercel 함수 로그에 `[type-test-analytics]` 경고를 남깁니다.
+
+공식 연결 방법: [Vercel–Upstash 통합](https://upstash.com/docs/redis/howto/vercelintegration). 수집은 [Upstash REST 트랜잭션](https://upstash.com/docs/redis/features/restapi#transactions)을 사용하며, 서버 메모리나 임시 파일이 아닌 Redis에 누적합니다. 기존 사용 이력은 복원할 수 없고 연결·배포한 시점부터 집계됩니다.
+
+### 운영자가 인원 확인하기
+
+Vercel에서 연결한 Upstash 저장소의 관리 콘솔을 열고 **CLI**에서 다음 명령을 각각 실행합니다. 저장소 접근 권한을 가진 운영자만 조회할 수 있습니다.
+
+```text
+SCARD ulsan-trip:type-test:v1:production:participants
+SCARD ulsan-trip:type-test:v1:production:completions
+```
+
+첫 번째 숫자가 **중복 제외 완료 인원**, 두 번째 숫자가 **재검사를 포함한 완료 횟수**입니다. 기록이 없으면 `0`입니다. 이 키를 지우거나 저장소를 교체하면 누적 통계가 사라집니다.
+
+Preview와 로컬 개발에서는 기본적으로 수집을 끕니다. 별도 테스트 저장소를 연결하고 `TYPE_TEST_ANALYTICS_ENABLED=true`로 켜면 각각 `preview`, `development` 키에 기록해 운영 수치와 분리합니다. 운영 수집을 중지하려면 Production에 `TYPE_TEST_ANALYTICS_ENABLED=false`를 설정하고 다시 배포합니다.
 
 ## 장소 데이터
 
@@ -277,6 +307,9 @@ npm run test:recommendation
 
 # TourAPI 사진 매칭·인증키 처리·오류 복구·캐시 회귀 테스트(실제 API 호출 없음)
 npm run test:photos
+
+# 내부 검사 집계·중복 제거·접근 제한·장애 처리 테스트(실제 Redis 호출 없음)
+npm run test:analytics
 
 # 코드 스타일 및 정적 검사
 npm run lint
